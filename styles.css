@@ -33,3 +33,6 @@
 /* Pré-visualização da cor HEX no formulário de administração */
 .color-preview{display:flex;align-items:center;justify-content:center;min-height:46px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(135deg,#33394a,#202431);color:#fff;font-size:11px;text-shadow:0 1px 3px #0008}
 .color-preview.has-color{color:#111;text-shadow:none;font-weight:700}
+
+.delete-button{border-color:#754343;color:#ffb0b0}
+.delete-button:hover{background:#512b2b}
