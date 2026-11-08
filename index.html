@@ -23,7 +23,7 @@
       <a class="active" href="#filamentos">Filamentos</a>
       <a href="#impressoes">Impressões</a>
     </nav>
-    <a class="admin-link" href="mailto:">Área privada <span aria-hidden="true">↗</span></a>
+    <a class="admin-link" href="#admin">Área privada <span aria-hidden="true">↗</span></a>
   </header>
 
   <main>
@@ -65,6 +65,29 @@
         <div class="empty-state"><span class="empty-icon">⌁</span><h3>Em breve, novas formas.</h3><p>As impressões publicadas serão apresentadas nesta galeria.</p></div>
       </div>
     </section>
+  <section class="admin-section" id="admin" hidden>
+    <div class="section-heading"><div><span class="eyebrow">03 / GESTÃO</span><h2>Área privada</h2></div><span class="section-note">Acesso reservado ao administrador</span></div>
+    <div id="admin-login" class="admin-panel">
+      <h3>Entrar na administração</h3><p>Utiliza o email e a palavra-passe da conta criada no Supabase.</p>
+      <form id="login-form" class="admin-form"><label>Email<input id="login-email" type="email" autocomplete="username" required></label><label>Palavra-passe<input id="login-password" type="password" autocomplete="current-password" required></label><button type="submit" class="hero-cta">Entrar</button></form>
+      <p id="login-message" class="admin-message" role="status"></p>
+    </div>
+    <div id="admin-dashboard" hidden>
+      <div class="admin-toolbar"><p id="admin-user"></p><button id="logout-button" type="button" class="secondary-button">Terminar sessão</button></div>
+      <div class="admin-panel"><h3>Adicionar filamento</h3><form id="filament-form" class="admin-form admin-form-grid">
+        <label>Marca<input id="new-brand" list="brand-options" required placeholder="Ex.: Bambu Lab"><datalist id="brand-options"></datalist></label>
+        <label>Material<input id="new-material" list="material-options" required placeholder="Ex.: PLA"><datalist id="material-options"></datalist></label>
+        <label>Nome da cor<input id="color-name" required placeholder="Ex.: Azul céu"></label>
+        <label>Referência da cor<input id="color-reference" placeholder="Ex.: #4A90E2"></label>
+        <label>Peso inicial (g)<input id="weight-total" type="number" min="1" value="1000" required></label>
+        <label>Peso restante (g)<input id="weight-remaining" type="number" min="0" value="1000" required></label>
+        <label class="file-label">Fotografia<input id="filament-photo" type="file" accept="image/*"></label>
+        <label class="check-label"><input id="publish-new" type="checkbox"> Mostrar no catálogo público</label>
+        <button type="submit" class="hero-cta">Guardar filamento</button>
+      </form><p id="filament-message" class="admin-message" role="status"></p></div>
+      <div class="admin-panel"><div class="admin-list-heading"><div><h3>O meu inventário</h3><p>Seleciona vários filamentos para os publicar ou ocultar em conjunto.</p></div><div class="bulk-actions"><button id="bulk-show" class="secondary-button" type="button">Publicar selecionados</button><button id="bulk-hide" class="secondary-button" type="button">Ocultar selecionados</button></div></div><div id="admin-filament-list"></div></div>
+    </div>
+  </section>
   </main>
 
   <footer><a class="brand footer-brand" href="#"><span class="brand-mark">3D</span><span><strong>FILAMENTOS</strong><small>CATÁLOGO & IMPRESSÕES</small></span></a><span>Feito para explorar. Criado em 3D.</span></footer>
