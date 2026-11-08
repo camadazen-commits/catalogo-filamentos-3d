@@ -1,14 +1,18 @@
-// Ligação pública ao Supabase. A chave publishable é própria para frontend;
-// a segurança dos dados é aplicada pelas políticas RLS e pelas vistas públicas.
+// Catálogo público e administração privada através do Supabase.
 const SUPABASE_URL = "https://zvcifolrildgandjfkzy.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_MX6RLJjYE1GzTom9Ath_Uw_AXPPOqPK";
+const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-const searchInput = document.querySelector("#search");
-const materialFilter = document.querySelector("#material-filter");
-const brandFilter = document.querySelector("#brand-filter");
-const filamentGrid = document.querySelector("#filament-grid");
-const printsGrid = document.querySelector("#prints-grid");
-const countLabel = document.querySelector("#filament-count");
+const $ = (selector) => document.querySelector(selector);
+const searchInput = $("#search");
+const materialFilter = $("#material-filter");
+const brandFilter = $("#brand-filter");
+const filamentGrid = $("#filament-grid");
+const printsGrid = $("#prints-grid");
+const countLabel = $("#filament-count");
+let allFilaments = [];
+let adminFilaments = [];
+const selectedIds = new Set();
 
 function showMessage(container, title, message) {
   if (!container) return;
@@ -28,124 +32,163 @@ function makeImage(url, alt) {
     const parsed = new URL(url);
     if (!["https:", "http:"].includes(parsed.protocol)) return null;
     const img = document.createElement("img");
-    img.src = parsed.href;
-    img.alt = alt;
-    img.loading = "lazy";
-    img.className = "catalog-photo";
+    img.src = parsed.href; img.alt = alt; img.loading = "lazy"; img.className = "catalog-photo";
     img.onerror = () => img.remove();
     return img;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
-
-let allFilaments = [];
 
 function renderFilaments() {
   if (!filamentGrid) return;
   const query = (searchInput?.value || "").trim().toLocaleLowerCase("pt-PT");
   const material = materialFilter?.value || "";
   const brand = brandFilter?.value || "";
-  const filtered = allFilaments.filter((item) => {
-    const searchable = [item.brand, item.material, item.color_name, item.color_reference]
-      .filter(Boolean).join(" ").toLocaleLowerCase("pt-PT");
-    return searchable.includes(query)
-      && (!material || item.material === material)
-      && (!brand || item.brand === brand);
+  const filtered = allFilaments.filter(item => {
+    const searchable = [item.brand,item.material,item.color_name,item.color_reference].filter(Boolean).join(" ").toLocaleLowerCase("pt-PT");
+    return searchable.includes(query) && (!material || item.material === material) && (!brand || item.brand === brand);
   });
-
   filamentGrid.replaceChildren();
   if (countLabel) countLabel.textContent = `${filtered.length} filamento(s) publicado(s)`;
-  if (!filtered.length) {
-    showMessage(filamentGrid, "Não foram encontrados filamentos.", "Experimenta alterar a pesquisa ou os filtros.");
-    return;
-  }
-
-  filtered.forEach((item) => {
-    const card = document.createElement("article");
-    card.className = "filament-card";
-    const photo = makeImage(item.photo_url, item.color_name || "Fotografia do filamento");
-    if (photo) card.append(photo);
-    else {
-      const swatch = document.createElement("div");
-      swatch.className = "filament-swatch";
-      swatch.setAttribute("aria-hidden", "true");
-      card.append(swatch);
-    }
-    const details = document.createElement("div");
-    details.className = "filament-details";
-    const brandName = document.createElement("p");
-    brandName.className = "filament-brand";
-    brandName.textContent = item.brand || "Marca não indicada";
-    const name = document.createElement("h3");
-    name.textContent = item.color_name;
-    const meta = document.createElement("p");
-    meta.className = "filament-meta";
-    meta.textContent = [item.material, item.color_reference].filter(Boolean).join(" · ");
-    const status = document.createElement("span");
-    status.className = item.available ? "availability available" : "availability unavailable";
-    status.textContent = item.available ? "Disponível" : "Esgotado";
-    details.append(brandName, name, meta, status);
-    card.append(details);
-    filamentGrid.append(card);
+  if (!filtered.length) return showMessage(filamentGrid,"Ainda não há filamentos publicados.","Quando adicionares filamentos e os publicares, aparecem aqui.");
+  filtered.forEach(item => {
+    const card=document.createElement("article"); card.className="filament-card";
+    const photo=makeImage(item.photo_url,item.color_name);
+    if(photo) card.append(photo); else {const swatch=document.createElement("div");swatch.className="filament-swatch";card.append(swatch);}
+    const details=document.createElement("div");details.className="filament-details";
+    const brandName=document.createElement("p");brandName.className="filament-brand";brandName.textContent=item.brand||"Marca não indicada";
+    const name=document.createElement("h3");name.textContent=item.color_name;
+    const meta=document.createElement("p");meta.className="filament-meta";meta.textContent=[item.material,item.color_reference].filter(Boolean).join(" · ");
+    const status=document.createElement("span");status.className=item.available?"availability available":"availability unavailable";status.textContent=item.available?"Disponível":"Esgotado";
+    details.append(brandName,name,meta,status);card.append(details);filamentGrid.append(card);
   });
 }
 
-async function loadCatalog() {
-  if (!window.supabase?.createClient) {
-    showMessage(filamentGrid, "Não foi possível iniciar o catálogo.", "Atualiza a página. Se o problema continuar, verifica a ligação ao Supabase.");
-    return;
-  }
-
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+async function loadPublicCatalog() {
   try {
-    const [filamentsResult, printsResult] = await Promise.all([
+    const [fr,pr]=await Promise.all([
       client.from("catalog_filaments").select("id,brand,material,color_name,color_reference,photo_url,available").order("brand").order("color_name"),
       client.from("catalog_prints").select("id,name,description,photo_url").order("name")
     ]);
-
-    if (filamentsResult.error) throw filamentsResult.error;
-    allFilaments = filamentsResult.data || [];
-
-    const materials = [...new Set(allFilaments.map(x => x.material).filter(Boolean))].sort();
-    const brands = [...new Set(allFilaments.map(x => x.brand).filter(Boolean))].sort();
-    materials.forEach(value => materialFilter?.add(new Option(value, value)));
-    brands.forEach(value => brandFilter?.add(new Option(value, value)));
+    if(fr.error) throw fr.error;
+    allFilaments=fr.data||[];
+    const mats=[...new Set(allFilaments.map(x=>x.material).filter(Boolean))].sort();
+    const brands=[...new Set(allFilaments.map(x=>x.brand).filter(Boolean))].sort();
+    mats.forEach(v=>materialFilter?.add(new Option(v,v)));
+    brands.forEach(v=>brandFilter?.add(new Option(v,v)));
     renderFilaments();
-
-    if (printsResult.error) {
-      showMessage(printsGrid, "Não foi possível carregar as impressões.", "Verifica as permissões do catálogo de impressões.");
-    } else {
-      const prints = printsResult.data || [];
-      printsGrid.replaceChildren();
-      if (!prints.length) {
-        showMessage(printsGrid, "Em breve, novas formas.", "As impressões publicadas serão apresentadas nesta galeria.");
-      } else {
-        prints.forEach(item => {
-          const card = document.createElement("article");
-          card.className = "print-card";
-          const photo = makeImage(item.photo_url, item.name);
-          if (photo) card.append(photo);
-          const details = document.createElement("div");
-          details.className = "print-details";
-          const title = document.createElement("h3");
-          title.textContent = item.name;
-          const description = document.createElement("p");
-          description.textContent = item.description || "";
-          details.append(title, description);
-          card.append(details);
-          printsGrid.append(card);
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Erro ao carregar catálogo:", error);
-    showMessage(filamentGrid, "Não foi possível ligar ao catálogo.", "Confirma as definições e permissões do Supabase. Atualiza a página para tentar novamente.");
+    if(pr.error) throw pr.error;
+    const prints=pr.data||[]; printsGrid.replaceChildren();
+    if(!prints.length) return showMessage(printsGrid,"Em breve, novas formas.","As impressões publicadas serão apresentadas nesta galeria.");
+    prints.forEach(item=>{
+      const card=document.createElement("article");card.className="print-card";
+      const img=makeImage(item.photo_url,item.name);if(img)card.append(img);
+      const details=document.createElement("div");details.className="print-details";
+      const title=document.createElement("h3");title.textContent=item.name;
+      const desc=document.createElement("p");desc.textContent=item.description||"";
+      details.append(title,desc);card.append(details);printsGrid.append(card);
+    });
+  } catch(error) {
+    console.error(error);
+    showMessage(filamentGrid,"Não foi possível carregar o catálogo.","Verifica a ligação e as permissões do Supabase.");
   }
 }
 
-searchInput?.addEventListener("input", renderFilaments);
-materialFilter?.addEventListener("change", renderFilaments);
-brandFilter?.addEventListener("change", renderFilaments);
+function setAdminState(user) {
+  $("#admin-login").hidden=!!user;
+  $("#admin-dashboard").hidden=!user;
+  if(user){$("#admin-user").textContent="Sessão iniciada: "+user.email;loadAdminFilaments();}
+}
 
-loadCatalog();
+async function loadAdminFilaments() {
+  const list=$("#admin-filament-list");
+  list.textContent="A carregar inventário…";
+  const {data,error}=await client.from("filaments").select("id,brand_id,material_id,color_name,color_reference,photo_url,weight_total,weight_remaining,is_public,brands(name),materials(name)").order("created_at",{ascending:false});
+  if(error){list.textContent="Não foi possível carregar o inventário: "+error.message;return;}
+  adminFilaments=data||[];selectedIds.clear();renderAdminList();
+  const {data:brands}=await client.from("brands").select("name").order("name");
+  const {data:materials}=await client.from("materials").select("name").order("name");
+  $("#brand-options").replaceChildren(...(brands||[]).map(x=>new Option(x.name,x.name)));
+  $("#material-options").replaceChildren(...(materials||[]).map(x=>new Option(x.name,x.name)));
+}
+
+function renderAdminList() {
+  const list=$("#admin-filament-list");list.replaceChildren();
+  if(!adminFilaments.length){list.textContent="Ainda não tens filamentos no inventário.";return;}
+  adminFilaments.forEach(item=>{
+    const row=document.createElement("div");row.className="admin-row";
+    const check=document.createElement("input");check.type="checkbox";check.checked=selectedIds.has(item.id);check.setAttribute("aria-label","Selecionar "+item.color_name);
+    check.addEventListener("change",()=>{check.checked?selectedIds.add(item.id):selectedIds.delete(item.id);});
+    row.append(check);
+    const img=makeImage(item.photo_url,item.color_name);if(img){img.className="";row.append(img);}else{const sw=document.createElement("div");sw.className="filament-swatch";sw.style.height="44px";sw.style.width="44px";sw.style.borderRadius="8px";row.append(sw);}
+    const info=document.createElement("div");const title=document.createElement("strong");title.textContent=item.color_name;
+    const sub=document.createElement("small");sub.textContent=[item.brands?.name,item.materials?.name,item.color_reference].filter(Boolean).join(" · ");
+    info.append(title,sub);row.append(info);
+    const stock=document.createElement("span");stock.className="stock";stock.textContent=`${item.weight_remaining} g / ${item.weight_total} g`;row.append(stock);
+    const actions=document.createElement("div");actions.style.display="flex";actions.style.gap="7px";actions.style.alignItems="center";
+    const publish=document.createElement("button");publish.type="button";publish.className="secondary-button";publish.textContent=item.is_public?"Ocultar":"Publicar";
+    publish.addEventListener("click",()=>updateFilament(item.id,{is_public:!item.is_public}));
+    const weight=document.createElement("button");weight.type="button";weight.className="secondary-button";weight.textContent="Alterar peso";
+    weight.addEventListener("click",async()=>{
+      const value=prompt("Peso restante em gramas:",String(item.weight_remaining));
+      if(value===null)return;const n=Number(value);
+      if(!Number.isInteger(n)||n<0||n>item.weight_total){alert("Indica um número inteiro entre 0 e o peso inicial.");return;}
+      await updateFilament(item.id,{weight_remaining:n});
+    });
+    actions.append(publish,weight);row.append(actions);list.append(row);
+  });
+}
+
+async function updateFilament(id,changes) {
+  const {error}=await client.from("filaments").update(changes).eq("id",id);
+  if(error){alert("Não foi possível guardar: "+error.message);return;}
+  await loadAdminFilaments();await loadPublicCatalog();
+}
+
+$("#login-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();$("#login-message").textContent="A entrar…";
+  const {data,error}=await client.auth.signInWithPassword({email:$("#login-email").value,password:$("#login-password").value});
+  if(error){$("#login-message").textContent="Não foi possível entrar. Confirma o email e a palavra-passe.";return;}
+  $("#login-message").textContent="Sessão iniciada.";setAdminState(data.user);
+});
+$("#logout-button")?.addEventListener("click",async()=>{await client.auth.signOut();setAdminState(null);});
+$("#filament-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();const message=$("#filament-message");message.textContent="A guardar…";
+  try {
+    const brandName=$("#new-brand").value.trim(),materialName=$("#new-material").value.trim();
+    const [{data:brand,error:be},{data:material,error:me}]=await Promise.all([
+      client.from("brands").upsert({name:brandName},{onConflict:"name"}).select("id").single(),
+      client.from("materials").upsert({name:materialName},{onConflict:"name"}).select("id").single()
+    ]);
+    if(be)throw be;if(me)throw me;
+    let photoUrl=null;const file=$("#filament-photo").files[0];
+    if(file){
+      if(!file.type.startsWith("image/"))throw new Error("O ficheiro tem de ser uma imagem.");
+      const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
+      const path=`filaments/${crypto.randomUUID()}-${safeName}`;
+      const {error:uploadError}=await client.storage.from("catalogo-fotos").upload(path,file,{upsert:false});
+      if(uploadError)throw uploadError;
+      const {data:urlData}=client.storage.from("catalogo-fotos").getPublicUrl(path);photoUrl=urlData.publicUrl;
+    }
+    const total=Number($("#weight-total").value),remaining=Number($("#weight-remaining").value);
+    if(!Number.isInteger(total)||!Number.isInteger(remaining)||total<1||remaining<0||remaining>total)throw new Error("Confirma os pesos: o restante deve estar entre zero e o peso inicial.");
+    const {error}=await client.from("filaments").insert({brand_id:brand.id,material_id:material.id,color_name:$("#color-name").value.trim(),color_reference:$("#color-reference").value.trim()||null,photo_url:photoUrl,weight_total:total,weight_remaining:remaining,is_public:$("#publish-new").checked});
+    if(error)throw error;
+    $("#filament-form").reset();$("#weight-total").value=1000;$("#weight-remaining").value=1000;
+    message.textContent="Filamento guardado com sucesso.";await loadAdminFilaments();await loadPublicCatalog();
+  } catch(error){console.error(error);message.textContent="Erro ao guardar: "+error.message;}
+});
+async function bulkSetVisibility(isPublic) {
+  const ids=[...selectedIds];if(!ids.length){alert("Seleciona primeiro pelo menos um filamento.");return;}
+  const {error}=await client.from("filaments").update({is_public:isPublic}).in("id",ids);
+  if(error){alert("Não foi possível atualizar: "+error.message);return;}
+  await loadAdminFilaments();await loadPublicCatalog();
+}
+$("#bulk-show")?.addEventListener("click",()=>bulkSetVisibility(true));
+$("#bulk-hide")?.addEventListener("click",()=>bulkSetVisibility(false));
+searchInput?.addEventListener("input",renderFilaments);
+materialFilter?.addEventListener("change",renderFilaments);
+brandFilter?.addEventListener("change",renderFilaments);
+
+client.auth.getSession().then(({data})=>setAdminState(data.session?.user||null));
+client.auth.onAuthStateChange((_event,session)=>setAdminState(session?.user||null));
+loadPublicCatalog();
