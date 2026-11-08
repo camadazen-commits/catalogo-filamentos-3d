@@ -38,6 +38,36 @@ function makeImage(url, alt) {
   } catch { return null; }
 }
 
+
+function getHexColor(reference) {
+  const value = String(reference || "").trim();
+  const match = value.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return null;
+  const hex = match[1].length === 3 ? match[1].split("").map(ch => ch + ch).join("") : match[1];
+  return "#" + hex.toUpperCase();
+}
+
+function makeColorSwatch(reference, className = "filament-swatch") {
+  const swatch = document.createElement("div");
+  swatch.className = className;
+  const color = getHexColor(reference);
+  if (color) {
+    swatch.style.background = color;
+    swatch.title = color;
+    swatch.setAttribute("aria-label", "Amostra de cor " + color);
+  }
+  return swatch;
+}
+
+function updateColorPreview() {
+  const preview = $("#color-preview");
+  if (!preview) return;
+  const color = getHexColor($("#color-reference")?.value);
+  preview.style.background = color || "linear-gradient(135deg,#33394a,#202431)";
+  preview.textContent = color || "Pré-visualização da cor";
+  preview.classList.toggle("has-color", !!color);
+}
+
 function renderFilaments() {
   if (!filamentGrid) return;
   const query = (searchInput?.value || "").trim().toLocaleLowerCase("pt-PT");
@@ -53,7 +83,7 @@ function renderFilaments() {
   filtered.forEach(item => {
     const card=document.createElement("article"); card.className="filament-card";
     const photo=makeImage(item.photo_url,item.color_name);
-    if(photo) card.append(photo); else {const swatch=document.createElement("div");swatch.className="filament-swatch";card.append(swatch);}
+    if(photo) card.append(photo); else {const swatch=makeColorSwatch(item.color_reference);card.append(swatch);}
     const details=document.createElement("div");details.className="filament-details";
     const brandName=document.createElement("p");brandName.className="filament-brand";brandName.textContent=item.brand||"Marca não indicada";
     const name=document.createElement("h3");name.textContent=item.color_name;
@@ -119,7 +149,7 @@ function renderAdminList() {
     const check=document.createElement("input");check.type="checkbox";check.checked=selectedIds.has(item.id);check.setAttribute("aria-label","Selecionar "+item.color_name);
     check.addEventListener("change",()=>{check.checked?selectedIds.add(item.id):selectedIds.delete(item.id);});
     row.append(check);
-    const img=makeImage(item.photo_url,item.color_name);if(img){img.className="";row.append(img);}else{const sw=document.createElement("div");sw.className="filament-swatch";sw.style.height="44px";sw.style.width="44px";sw.style.borderRadius="8px";row.append(sw);}
+    const img=makeImage(item.photo_url,item.color_name);if(img){img.className="";row.append(img);}else{const sw=makeColorSwatch(item.color_reference);sw.style.height="44px";sw.style.width="44px";sw.style.borderRadius="8px";row.append(sw);}
     const info=document.createElement("div");const title=document.createElement("strong");title.textContent=item.color_name;
     const sub=document.createElement("small");sub.textContent=[item.brands?.name,item.materials?.name,item.color_reference].filter(Boolean).join(" · ");
     info.append(title,sub);row.append(info);
@@ -151,6 +181,8 @@ $("#login-form")?.addEventListener("submit",async event=>{
   $("#login-message").textContent="Sessão iniciada.";setAdminState(data.user);
 });
 $("#logout-button")?.addEventListener("click",async()=>{await client.auth.signOut();setAdminState(null);});
+$("#color-reference")?.addEventListener("input", updateColorPreview);
+updateColorPreview();
 $("#filament-form")?.addEventListener("submit",async event=>{
   event.preventDefault();const message=$("#filament-message");message.textContent="A guardar…";
   try {
@@ -173,7 +205,7 @@ $("#filament-form")?.addEventListener("submit",async event=>{
     if(!Number.isInteger(total)||!Number.isInteger(remaining)||total<1||remaining<0||remaining>total)throw new Error("Confirma os pesos: o restante deve estar entre zero e o peso inicial.");
     const {error}=await client.from("filaments").insert({brand_id:brand.id,material_id:material.id,color_name:$("#color-name").value.trim(),color_reference:$("#color-reference").value.trim()||null,photo_url:photoUrl,weight_total:total,weight_remaining:remaining,is_public:$("#publish-new").checked});
     if(error)throw error;
-    $("#filament-form").reset();$("#weight-total").value=1000;$("#weight-remaining").value=1000;
+    $("#filament-form").reset();updateColorPreview();$("#weight-total").value=1000;$("#weight-remaining").value=1000;
     message.textContent="Filamento guardado com sucesso.";await loadAdminFilaments();await loadPublicCatalog();
   } catch(error){console.error(error);message.textContent="Erro ao guardar: "+error.message;}
 });
