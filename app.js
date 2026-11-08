@@ -82,8 +82,9 @@ function renderFilaments() {
   if (!filtered.length) return showMessage(filamentGrid,"Ainda não há filamentos publicados.","Quando adicionares filamentos e os publicares, aparecem aqui.");
   filtered.forEach(item => {
     const card=document.createElement("article"); card.className="filament-card";
-    const photo=makeImage(item.photo_url,item.color_name);
-    if(photo) card.append(photo); else {const swatch=makeColorSwatch(item.color_reference);card.append(swatch);}
+    const color=getHexColor(item.color_reference);
+    if(color) card.append(makeColorSwatch(item.color_reference));
+    else {const photo=makeImage(item.photo_url,item.color_name);if(photo) card.append(photo);else card.append(makeColorSwatch(null));}
     const details=document.createElement("div");details.className="filament-details";
     const brandName=document.createElement("p");brandName.className="filament-brand";brandName.textContent=item.brand||"Marca não indicada";
     const name=document.createElement("h3");name.textContent=item.color_name;
@@ -149,7 +150,9 @@ function renderAdminList() {
     const check=document.createElement("input");check.type="checkbox";check.checked=selectedIds.has(item.id);check.setAttribute("aria-label","Selecionar "+item.color_name);
     check.addEventListener("change",()=>{check.checked?selectedIds.add(item.id):selectedIds.delete(item.id);});
     row.append(check);
-    const img=makeImage(item.photo_url,item.color_name);if(img){img.className="";row.append(img);}else{const sw=makeColorSwatch(item.color_reference);sw.style.height="44px";sw.style.width="44px";sw.style.borderRadius="8px";row.append(sw);}
+    const color=getHexColor(item.color_reference);
+    if(color){const sw=makeColorSwatch(item.color_reference);sw.style.height="44px";sw.style.width="44px";sw.style.borderRadius="8px";row.append(sw);}
+    else{const img=makeImage(item.photo_url,item.color_name);if(img){img.className="";row.append(img);}else{const sw=makeColorSwatch(null);sw.style.height="44px";sw.style.width="44px";sw.style.borderRadius="8px";row.append(sw);}}
     const info=document.createElement("div");const title=document.createElement("strong");title.textContent=item.color_name;
     const sub=document.createElement("small");sub.textContent=[item.brands?.name,item.materials?.name,item.color_reference].filter(Boolean).join(" · ");
     info.append(title,sub);row.append(info);
@@ -164,7 +167,9 @@ function renderAdminList() {
       if(!Number.isInteger(n)||n<0||n>item.weight_total){alert("Indica um número inteiro entre 0 e o peso inicial.");return;}
       await updateFilament(item.id,{weight_remaining:n});
     });
-    actions.append(publish,weight);row.append(actions);list.append(row);
+    const remove=document.createElement("button");remove.type="button";remove.className="secondary-button delete-button";remove.textContent="Eliminar";
+    remove.addEventListener("click",()=>deleteFilament(item));
+    actions.append(publish,weight,remove);row.append(actions);list.append(row);
   });
 }
 
@@ -172,6 +177,16 @@ async function updateFilament(id,changes) {
   const {error}=await client.from("filaments").update(changes).eq("id",id);
   if(error){alert("Não foi possível guardar: "+error.message);return;}
   await loadAdminFilaments();await loadPublicCatalog();
+}
+
+async function deleteFilament(item) {
+  const confirmed=confirm(`Tens a certeza de que queres eliminar o filamento "${item.color_name}"? Esta ação não pode ser desfeita.`);
+  if(!confirmed)return;
+  const {error}=await client.from("filaments").delete().eq("id",item.id);
+  if(error){alert("Não foi possível eliminar o filamento: "+error.message);return;}
+  selectedIds.delete(item.id);
+  await loadAdminFilaments();
+  await loadPublicCatalog();
 }
 
 $("#login-form")?.addEventListener("submit",async event=>{
