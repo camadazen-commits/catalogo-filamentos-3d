@@ -189,6 +189,20 @@ searchInput?.addEventListener("input",renderFilaments);
 materialFilter?.addEventListener("change",renderFilaments);
 brandFilter?.addEventListener("change",renderFilaments);
 
+// Abrir a área privada quando o utilizador carrega no respetivo link.
+const adminSection = $("#admin");
+function revealAdminSection() {
+  if (!adminSection) return;
+  adminSection.hidden = false;
+  adminSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$(".admin-link")?.addEventListener("click", event => {
+  event.preventDefault();
+  revealAdminSection();
+  if (window.location.hash !== "#admin") history.replaceState(null, "", "#admin");
+});
+if (window.location.hash === "#admin") revealAdminSection();
+
 client.auth.getSession().then(({data})=>setAdminState(data.session?.user||null));
 client.auth.onAuthStateChange((_event,session)=>setAdminState(session?.user||null));
 loadPublicCatalog();
