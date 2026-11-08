@@ -29,3 +29,7 @@
 .admin-row input{accent-color:var(--accent)}.admin-row .stock{font-size:11px;color:var(--muted);white-space:nowrap}
 .admin-row button{white-space:nowrap}
 @media(max-width:650px){.admin-form-grid{grid-template-columns:1fr}.admin-row{grid-template-columns:auto 44px minmax(0,1fr);}.admin-row img{width:44px;height:44px}.admin-row .stock,.admin-row button{grid-column:3}.admin-list-heading{align-items:flex-start}}
+
+/* Pré-visualização da cor HEX no formulário de administração */
+.color-preview{display:flex;align-items:center;justify-content:center;min-height:46px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(135deg,#33394a,#202431);color:#fff;font-size:11px;text-shadow:0 1px 3px #0008}
+.color-preview.has-color{color:#111;text-shadow:none;font-weight:700}
