@@ -94,33 +94,73 @@ function renderFilaments() {
   });
 }
 
+function openPrintDetails(item, photos, materials) {
+  const overlay=document.createElement("div");overlay.className="print-modal-backdrop";
+  const modal=document.createElement("section");modal.className="print-modal";modal.setAttribute("role","dialog");modal.setAttribute("aria-modal","true");modal.setAttribute("aria-label",item.name);
+  const close=document.createElement("button");close.className="modal-close";close.type="button";close.textContent="✕";close.setAttribute("aria-label","Fechar");
+  close.addEventListener("click",()=>overlay.remove());
+  const heading=document.createElement("h2");heading.textContent=item.name;
+  const gallery=document.createElement("div");gallery.className="print-modal-gallery";
+  const mainPhoto=document.createElement("img");mainPhoto.alt=item.name;mainPhoto.className="print-modal-main";
+  const urls=(photos||[]).map(x=>x.photo_url).filter(Boolean);
+  if(!urls.length&&item.photo_url)urls.push(item.photo_url);
+  if(urls.length){mainPhoto.src=urls[0];gallery.append(mainPhoto);}
+  const thumbs=document.createElement("div");thumbs.className="print-thumbnails";
+  urls.forEach((url,index)=>{const thumb=document.createElement("button");thumb.type="button";thumb.className="print-thumb";const image=document.createElement("img");image.src=url;image.alt=item.name+" — fotografia "+(index+1);thumb.append(image);thumb.addEventListener("click",()=>{mainPhoto.src=url;});thumbs.append(thumb);});
+  gallery.append(thumbs);
+  const content=document.createElement("div");content.className="print-modal-content";
+  const price=document.createElement("p");price.className="print-price";price.textContent=item.price!==null&&item.price!==undefined?"Preço: "+Number(item.price).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"Preço sob consulta";
+  const desc=document.createElement("p");desc.textContent=item.description||"";
+  content.append(price,desc);
+  if(item.useful_info){const h=document.createElement("h3");h.textContent="Informações úteis";const p=document.createElement("p");p.textContent=item.useful_info;content.append(h,p);}
+  if(item.observations){const h=document.createElement("h3");h.textContent="Observações";const p=document.createElement("p");p.textContent=item.observations;content.append(h,p);}
+  const allowed=(materials||[]).map(x=>x.material_name).filter(Boolean);
+  if(allowed.length){const h=document.createElement("h3");h.textContent="Materiais disponíveis";const p=document.createElement("p");p.textContent=allowed.join(" · ");content.append(h,p);}
+  modal.append(close,heading,gallery,content);overlay.append(modal);
+  overlay.addEventListener("click",event=>{if(event.target===overlay)overlay.remove();});
+  document.addEventListener("keydown",function esc(event){if(event.key==="Escape"){overlay.remove();document.removeEventListener("keydown",esc);}});
+  document.body.append(overlay);
+}
+
 async function loadPublicCatalog() {
   try {
-    const [fr,pr]=await Promise.all([
+    const [fr,pr,photoResult,materialResult]=await Promise.all([
       client.from("catalog_filaments").select("id,brand,material,color_name,color_reference,photo_url,available").order("brand").order("color_name"),
-      client.from("catalog_prints").select("id,name,description,photo_url").order("name")
+      client.from("catalog_prints").select("id,name,description,photo_url,price,useful_info,observations").order("name"),
+      client.from("catalog_print_photos").select("print_id,photo_url,sort_order").order("sort_order"),
+      client.from("catalog_print_materials").select("print_id,material_id,material_name")
     ]);
     if(fr.error) throw fr.error;
     allFilaments=fr.data||[];
     const mats=[...new Set(allFilaments.map(x=>x.material).filter(Boolean))].sort();
     const brands=[...new Set(allFilaments.map(x=>x.brand).filter(Boolean))].sort();
-    mats.forEach(v=>materialFilter?.add(new Option(v,v)));
-    brands.forEach(v=>brandFilter?.add(new Option(v,v)));
+    mats.forEach(v=>{if(![...materialFilter.options].some(o=>o.value===v))materialFilter?.add(new Option(v,v));});
+    brands.forEach(v=>{if(![...brandFilter.options].some(o=>o.value===v))brandFilter?.add(new Option(v,v));});
     renderFilaments();
     if(pr.error) throw pr.error;
-    const prints=pr.data||[]; printsGrid.replaceChildren();
+    if(photoResult.error) throw photoResult.error;
+    if(materialResult.error) throw materialResult.error;
+    const prints=pr.data||[],photos=photoResult.data||[],allowed=materialResult.data||[];
+    printsGrid.replaceChildren();
     if(!prints.length) return showMessage(printsGrid,"Em breve, novas formas.","As impressões publicadas serão apresentadas nesta galeria.");
     prints.forEach(item=>{
-      const card=document.createElement("article");card.className="print-card";
-      const img=makeImage(item.photo_url,item.name);if(img)card.append(img);
+      const itemPhotos=photos.filter(x=>x.print_id===item.id).sort((a,b)=>a.sort_order-b.sort_order);
+      const card=document.createElement("button");card.type="button";card.className="print-card print-card-button";card.setAttribute("aria-label","Ver detalhes de "+item.name);
+      const cover=itemPhotos[0]?.photo_url||item.photo_url;
+      const img=makeImage(cover,item.name);if(img)card.append(img);
       const details=document.createElement("div");details.className="print-details";
       const title=document.createElement("h3");title.textContent=item.name;
       const desc=document.createElement("p");desc.textContent=item.description||"";
-      details.append(title,desc);card.append(details);printsGrid.append(card);
+      const price=document.createElement("p");price.className="print-card-price";price.textContent=item.price!==null&&item.price!==undefined?Number(item.price).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"Preço sob consulta";
+      const hint=document.createElement("span");hint.className="print-open-hint";hint.textContent="Ver peça e fotografias →";
+      details.append(title,desc,price,hint);card.append(details);
+      card.addEventListener("click",()=>openPrintDetails(item,itemPhotos,allowed.filter(x=>x.print_id===item.id)));
+      printsGrid.append(card);
     });
   } catch(error) {
     console.error(error);
     showMessage(filamentGrid,"Não foi possível carregar o catálogo.","Verifica a ligação e as permissões do Supabase.");
+    showMessage(printsGrid,"Não foi possível carregar as impressões.","Confirma as permissões das vistas públicas no Supabase.");
   }
 }
 
@@ -140,6 +180,7 @@ async function loadAdminFilaments() {
   const {data:materials}=await client.from("materials").select("name").order("name");
   $("#brand-options").replaceChildren(...(brands||[]).map(x=>new Option(x.name,x.name)));
   $("#material-options").replaceChildren(...(materials||[]).map(x=>new Option(x.name,x.name)));
+  await loadAdminPrints();
 }
 
 function renderAdminList() {
@@ -188,6 +229,91 @@ async function deleteFilament(item) {
   await loadAdminFilaments();
   await loadPublicCatalog();
 }
+
+
+let adminPrints=[];
+let printMaterials=[];
+async function loadAdminPrints() {
+  const list=$("#admin-print-list");if(!list)return;
+  list.textContent="A carregar impressões…";
+  const [{data:prints,error:pe},{data:materials,error:me}]=await Promise.all([
+    client.from("prints").select("id,name,description,photo_url,price,useful_info,observations,is_public").order("created_at",{ascending:false}),
+    client.from("materials").select("id,name").order("name")
+  ]);
+  if(pe){list.textContent="Não foi possível carregar as impressões: "+pe.message;return;}
+  if(me){list.textContent="Não foi possível carregar os materiais: "+me.message;return;}
+  adminPrints=prints||[];printMaterials=materials||[];
+  const choices=$("#print-material-options");choices.replaceChildren();
+  if(!printMaterials.length)choices.textContent="Ainda não existem materiais cadastrados.";
+  printMaterials.forEach(material=>{const label=document.createElement("label");label.className="material-option";const check=document.createElement("input");check.type="checkbox";check.value=material.id;const span=document.createElement("span");span.textContent=material.name;label.append(check,span);choices.append(label);});
+  list.replaceChildren();
+  if(!adminPrints.length){list.textContent="Ainda não tens impressões. Usa o formulário acima para adicionar a primeira.";return;}
+  adminPrints.forEach(item=>{
+    const row=document.createElement("div");row.className="admin-print-row";
+    const image=makeImage(item.photo_url,item.name);if(image){image.className="admin-print-thumb";row.append(image);}else{const placeholder=document.createElement("div");placeholder.className="admin-print-thumb admin-print-placeholder";placeholder.textContent="3D";row.append(placeholder);}
+    const info=document.createElement("div");const title=document.createElement("strong");title.textContent=item.name;const meta=document.createElement("small");meta.textContent=[item.price!==null&&item.price!==undefined?Number(item.price).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"Preço sob consulta",item.is_public?"Publicado":"Oculto"].join(" · ");info.append(title,meta);row.append(info);
+    const actions=document.createElement("div");actions.className="admin-print-actions";
+    const visibility=document.createElement("button");visibility.type="button";visibility.className="secondary-button";visibility.textContent=item.is_public?"Ocultar":"Publicar";visibility.addEventListener("click",()=>setPrintVisibility(item.id,!item.is_public));
+    const remove=document.createElement("button");remove.type="button";remove.className="secondary-button delete-button";remove.textContent="Eliminar";remove.addEventListener("click",()=>deletePrint(item));
+    actions.append(visibility,remove);row.append(actions);list.append(row);
+  });
+}
+async function setPrintVisibility(id,isPublic){
+  const {error}=await client.from("prints").update({is_public:isPublic}).eq("id",id);
+  if(error){alert("Não foi possível alterar a publicação: "+error.message);return;}
+  await loadAdminPrints();await loadPublicCatalog();
+}
+async function deletePrint(item){
+  if(!confirm('Queres mesmo eliminar "'+item.name+'"? Esta ação não pode ser desfeita.'))return;
+  const {error}=await client.from("prints").delete().eq("id",item.id);
+  if(error){alert("Não foi possível eliminar a impressão: "+error.message);return;}
+  await loadAdminPrints();await loadPublicCatalog();
+}
+$("#print-photos")?.addEventListener("change",event=>{
+  const files=[...event.target.files];
+  if(files.length>4){alert("Podes selecionar no máximo 4 fotografias.");event.target.value="";}
+  else if(files.some(file=>!file.type.startsWith("image/"))){alert("Todos os ficheiros têm de ser imagens.");event.target.value="";}
+});
+$("#print-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();const message=$("#print-message");message.textContent="A guardar impressão…";
+  try{
+    const name=$("#print-name").value.trim();
+    const priceValue=$("#print-price").value.trim();
+    const price=priceValue===""?null:Number(priceValue);
+    if(price!==null&&(!Number.isFinite(price)||price<0))throw new Error("Indica um preço válido.");
+    const files=[...$("#print-photos").files];
+    if(files.length>4)throw new Error("Podes carregar no máximo 4 fotografias.");
+    const {data:created,error:createError}=await client.from("prints").insert({
+      name,price,description:$("#print-description").value.trim()||null,
+      useful_info:$("#print-useful-info").value.trim()||null,
+      observations:$("#print-observations").value.trim()||null,
+      is_public:$("#print-publish").checked
+    }).select("id").single();
+    if(createError)throw createError;
+    const uploaded=[];
+    for(let i=0;i<files.length;i++){
+      const file=files[i],safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
+      const path="prints/"+crypto.randomUUID()+"-"+safeName;
+      const {error:uploadError}=await client.storage.from("catalogo-fotos").upload(path,file,{upsert:false});
+      if(uploadError)throw uploadError;
+      const {data:urlData}=client.storage.from("catalogo-fotos").getPublicUrl(path);
+      uploaded.push({print_id:created.id,photo_url:urlData.publicUrl,sort_order:i});
+    }
+    if(uploaded.length){
+      const {error:photosError}=await client.from("print_photos").insert(uploaded);
+      if(photosError)throw photosError;
+      const {error:coverError}=await client.from("prints").update({photo_url:uploaded[0].photo_url}).eq("id",created.id);
+      if(coverError)throw coverError;
+    }
+    const materialIds=[...$("#print-material-options").querySelectorAll('input[type="checkbox"]:checked')].map(input=>Number(input.value));
+    if(materialIds.length){
+      const {error:materialsError}=await client.from("print_materials").insert(materialIds.map(material_id=>({print_id:created.id,material_id})));
+      if(materialsError)throw materialsError;
+    }
+    $("#print-form").reset();message.textContent="Impressão guardada com sucesso.";
+    await loadAdminPrints();await loadPublicCatalog();
+  }catch(error){console.error(error);message.textContent="Erro ao guardar: "+(error.message||"confirma os dados e as permissões.");}
+});
 
 $("#login-form")?.addEventListener("submit",async event=>{
   event.preventDefault();$("#login-message").textContent="A entrar…";
