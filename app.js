@@ -116,12 +116,57 @@ function openPrintDetails(item, photos, materials) {
   if(item.observations){const h=document.createElement("h3");h.textContent="Observações";const p=document.createElement("p");p.textContent=item.observations;content.append(h,p);}
   const allowed=(materials||[]).map(x=>x.material_name).filter(Boolean);
   if(allowed.length){const h=document.createElement("h3");h.textContent="Materiais disponíveis";const p=document.createElement("p");p.textContent=allowed.join(" · ");content.append(h,p);}
-  modal.append(close,heading,gallery,content);overlay.append(modal);
+
+  const request=document.createElement("form");request.className="print-request-form";
+  const requestTitle=document.createElement("h3");requestTitle.textContent="Pedir esta peça";
+  const intro=document.createElement("p");intro.textContent="Preenche os teus dados e envia-nos o pedido. Entraremos em contacto contigo.";
+  const field=(labelText,type,name,required=true)=>{
+    const label=document.createElement("label");label.textContent=labelText;
+    const input=document.createElement("input");input.type=type;input.name=name;input.required=required;
+    if(name==="quantity"){input.min="1";input.max="10000";input.step="1";input.value="1";}
+    if(name==="email")input.autocomplete="email";
+    if(name==="name")input.autocomplete="name";
+    if(name==="phone")input.autocomplete="tel";
+    label.append(input);return {label,input};
+  };
+  const nameField=field("Nome","text","name");
+  const emailField=field("Email","email","email");
+  const phoneField=field("Telefone (opcional)","tel","phone",false);
+  const quantityField=field("Quantidade","number","quantity");
+  const materialLabel=document.createElement("label");materialLabel.textContent="Material pretendido";
+  const materialSelect=document.createElement("select");materialSelect.name="material";materialSelect.required=true;
+  const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Escolhe um material";materialSelect.append(placeholder);
+  allowed.forEach(value=>{const option=document.createElement("option");option.value=value;option.textContent=value;materialSelect.append(option);});
+  if(!allowed.length){const option=document.createElement("option");option.value="A combinar";option.textContent="A combinar";materialSelect.append(option);}
+  materialLabel.append(materialSelect);
+  const messageLabel=document.createElement("label");messageLabel.textContent="Mensagem ou detalhes (opcional)";
+  const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.maxLength=3000;messageLabel.append(messageInput);
+  const submit=document.createElement("button");submit.type="submit";submit.className="hero-cta";submit.textContent="Enviar pedido";
+  const status=document.createElement("p");status.className="request-message";status.setAttribute("role","status");
+  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,quantityField.label,messageLabel,submit,status);
+  request.addEventListener("submit",async event=>{
+    event.preventDefault();
+    submit.disabled=true;submit.textContent="A enviar…";status.textContent="";
+    try{
+      const payload={name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,material:materialSelect.value,quantity:Number(quantityField.input.value),message:messageInput.value.trim()};
+      const {data,error}=await client.functions.invoke("print-request",{body:payload});
+      if(error)throw error;
+      if(!data?.success)throw new Error(data?.error||"Não foi possível enviar o pedido.");
+      status.textContent="Pedido enviado com sucesso! Obrigado.";
+      request.reset();quantityField.input.value="1";
+    }catch(error){
+      console.error(error);
+      status.textContent="Não foi possível enviar. Tenta novamente ou contacta-nos por email.";
+    }finally{
+      submit.disabled=false;submit.textContent="Enviar pedido";
+    }
+  });
+
+  modal.append(close,heading,gallery,content,request);overlay.append(modal);
   overlay.addEventListener("click",event=>{if(event.target===overlay)overlay.remove();});
   document.addEventListener("keydown",function esc(event){if(event.key==="Escape"){overlay.remove();document.removeEventListener("keydown",esc);}});
   document.body.append(overlay);
 }
-
 async function loadPublicCatalog() {
   try {
     const [fr,pr,photoResult,materialResult]=await Promise.all([
