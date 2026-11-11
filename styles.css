@@ -102,3 +102,12 @@
 @media(max-width:560px){.print-request-form{grid-template-columns:1fr;padding:15px}.print-request-form h3,.print-request-form>p{grid-column:1}}
 
 .print-request-form select{appearance:auto}
+
+/* Identidade visual CamadaZen no cabeçalho e rodapé */
+.brand-logo-symbol{display:block;width:48px;height:42px;object-fit:contain;flex:0 0 auto}
+.brand-wordmark strong{display:block;font:400 27px/1 Georgia,"Times New Roman",serif;letter-spacing:-1.2px;background:linear-gradient(100deg,#f28a22 0 56%,#929b55 76%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand-wordmark strong span{color:#929b55}
+.brand-wordmark small{display:block;margin-top:5px;color:#b2a66a;font-size:7px;letter-spacing:1.35px;white-space:nowrap}
+.footer-brand .brand-logo-symbol{width:40px;height:35px}
+.footer-brand .brand-wordmark strong{font-size:23px}
+@media(max-width:420px){.brand{gap:7px}.brand-logo-symbol{width:39px;height:35px}.brand-wordmark strong{font-size:23px}.brand-wordmark small{font-size:6px;letter-spacing:1px}}
