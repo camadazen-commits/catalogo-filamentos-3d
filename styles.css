@@ -100,3 +100,5 @@
 .print-request-form button:disabled{opacity:.6;cursor:wait}
 .print-request-form .request-message{align-self:center;color:var(--accent);font-size:12px;min-height:18px}
 @media(max-width:560px){.print-request-form{grid-template-columns:1fr;padding:15px}.print-request-form h3,.print-request-form>p{grid-column:1}}
+
+.print-request-form select{appearance:auto}
