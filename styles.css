@@ -86,3 +86,17 @@
   .print-thumb{min-width:68px}
   .print-thumb img{height:62px}
 }
+
+
+/* Formulário público para pedidos de impressão */
+.print-request-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:28px;padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.print-request-form h3,.print-request-form>p{grid-column:1/-1;margin:0}
+.print-request-form h3{font:700 19px Manrope;color:var(--text)}
+.print-request-form>p{font-size:12px;color:var(--muted);line-height:1.5}
+.print-request-form label{display:grid;gap:7px;color:var(--muted);font-size:12px}
+.print-request-form input,.print-request-form select,.print-request-form textarea{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);padding:11px 12px;font:13px "DM Sans"}
+.print-request-form textarea{resize:vertical}
+.print-request-form button{justify-self:start;margin-top:3px;border:0;cursor:pointer}
+.print-request-form button:disabled{opacity:.6;cursor:wait}
+.print-request-form .request-message{align-self:center;color:var(--accent);font-size:12px;min-height:18px}
+@media(max-width:560px){.print-request-form{grid-template-columns:1fr;padding:15px}.print-request-form h3,.print-request-form>p{grid-column:1}}
