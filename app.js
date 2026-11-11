@@ -139,16 +139,40 @@ function openPrintDetails(item, photos, materials) {
   allowed.forEach(value=>{const option=document.createElement("option");option.value=value;option.textContent=value;materialSelect.append(option);});
   if(!allowed.length){const option=document.createElement("option");option.value="A combinar";option.textContent="A combinar";materialSelect.append(option);}
   materialLabel.append(materialSelect);
+  const colorLabel=document.createElement("label");colorLabel.textContent="Cor pretendida";
+  const colorSelect=document.createElement("select");colorSelect.name="color";colorSelect.required=true;
+  const colorPlaceholder=document.createElement("option");colorPlaceholder.value="";colorPlaceholder.textContent="Escolhe primeiro o material";colorSelect.append(colorPlaceholder);
+  const updateColorChoices=()=>{
+    const selectedMaterial=materialSelect.value;
+    const choices=allFilaments.filter(f=>f.available && allowed.includes(f.material) && (!selectedMaterial || selectedMaterial==="A combinar" || f.material===selectedMaterial));
+    colorSelect.replaceChildren();
+    const first=document.createElement("option");first.value="";first.textContent=selectedMaterial?"Escolhe uma cor":"Escolhe primeiro o material";colorSelect.append(first);
+    const unique=new Map();
+    choices.forEach(f=>{
+      const label=[f.color_name,f.color_reference,f.brand].filter(Boolean).join(" · ");
+      const key=[f.material,f.color_name,f.color_reference,f.brand].join("|");
+      if(!unique.has(key))unique.set(key,{label,material:f.material});
+    });
+    [...unique.values()].forEach(choice=>{
+      const option=document.createElement("option");option.value=choice.label;option.textContent=choice.label;colorSelect.append(option);
+    });
+    if(!choices.length && selectedMaterial){
+      const none=document.createElement("option");none.value="A combinar";none.textContent="A combinar / sem cor em stock";colorSelect.append(none);
+    }
+  };
+  materialSelect.addEventListener("change",updateColorChoices);
+  updateColorChoices();
+  colorLabel.append(colorSelect);
   const messageLabel=document.createElement("label");messageLabel.textContent="Mensagem ou detalhes (opcional)";
   const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.maxLength=3000;messageLabel.append(messageInput);
   const submit=document.createElement("button");submit.type="submit";submit.className="hero-cta";submit.textContent="Enviar pedido";
   const status=document.createElement("p");status.className="request-message";status.setAttribute("role","status");
-  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,quantityField.label,messageLabel,submit,status);
+  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,submit,status);
   request.addEventListener("submit",async event=>{
     event.preventDefault();
     submit.disabled=true;submit.textContent="A enviar…";status.textContent="";
     try{
-      const payload={name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,material:materialSelect.value,quantity:Number(quantityField.input.value),message:messageInput.value.trim()};
+      const payload={name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,material:materialSelect.value,quantity:Number(quantityField.input.value),message:("Cor pretendida: "+colorSelect.value+(messageInput.value.trim()?"\\n\\n"+messageInput.value.trim():""))};
       const {data,error}=await client.functions.invoke("print-request",{body:payload});
       if(error)throw error;
       if(!data?.success)throw new Error(data?.error||"Não foi possível enviar o pedido.");
