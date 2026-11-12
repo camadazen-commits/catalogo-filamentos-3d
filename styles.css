@@ -113,3 +113,6 @@
 .footer-brand .brand-logo-symbol{width:40px;height:35px}
 .footer-brand .brand-wordmark strong{font-size:23px}
 @media(max-width:420px){.brand{gap:7px}.brand-logo-symbol{width:39px;height:35px}.brand-wordmark strong{font-size:23px}.brand-wordmark small{font-size:6px;letter-spacing:1px}}
+
+/* Gestão das fotografias ao editar impressões */
+.edit-print-photos{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}.edit-print-photo{display:flex;flex-direction:column;gap:7px;max-width:145px;font-size:12px;color:var(--muted)}.edit-print-photo img{width:120px;height:100px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}.edit-print-photo input{align-self:flex-start}
