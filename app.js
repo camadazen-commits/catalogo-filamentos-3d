@@ -109,7 +109,7 @@ function openPrintDetails(item, photos, materials) {
   urls.forEach((url,index)=>{const thumb=document.createElement("button");thumb.type="button";thumb.className="print-thumb";const image=document.createElement("img");image.src=url;image.alt=item.name+" — fotografia "+(index+1);thumb.append(image);thumb.addEventListener("click",()=>{mainPhoto.src=url;});thumbs.append(thumb);});
   gallery.append(thumbs);
   const content=document.createElement("div");content.className="print-modal-content";
-  const price=document.createElement("p");price.className="print-price";price.textContent=item.price!==null&&item.price!==undefined?"Preço: "+Number(item.price).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"Preço sob consulta";
+  const price=document.createElement("p");price.className="print-price";price.textContent="Exemplo de projeto pessoal · Sem encomenda confirmada";
   const desc=document.createElement("p");desc.textContent=item.description||"";
   content.append(price,desc);
   if(item.useful_info){const h=document.createElement("h3");h.textContent="Informações úteis";const p=document.createElement("p");p.textContent=item.useful_info;content.append(h,p);}
@@ -118,8 +118,8 @@ function openPrintDetails(item, photos, materials) {
   if(allowed.length){const h=document.createElement("h3");h.textContent="Materiais disponíveis";const p=document.createElement("p");p.textContent=allowed.join(" · ");content.append(h,p);}
 
   const request=document.createElement("form");request.className="print-request-form";
-  const requestTitle=document.createElement("h3");requestTitle.textContent="Pedir esta peça";
-  const intro=document.createElement("p");intro.textContent="Preenche os teus dados e envia-nos o pedido. Entraremos em contacto contigo.";
+  const requestTitle=document.createElement("h3");requestTitle.textContent="Pedir informações";
+  const intro=document.createElement("p");intro.textContent="Este formulário serve apenas para pedir informações e avaliar possibilidades de impressão. O envio não constitui uma encomenda, reserva ou compromisso de produção. Entraremos em contacto contigo.";
   const field=(labelText,type,name,required=true)=>{
     const label=document.createElement("label");label.textContent=labelText;
     const input=document.createElement("input");input.type=type;input.name=name;input.required=required;
@@ -167,7 +167,7 @@ function openPrintDetails(item, photos, materials) {
   const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.maxLength=3000;messageLabel.append(messageInput);
   const turnstileContainer=document.createElement("div");turnstileContainer.className="turnstile-container";
   let turnstileWidgetId=null;
-  const submit=document.createElement("button");submit.type="submit";submit.className="hero-cta";submit.textContent="Enviar pedido";
+  const submit=document.createElement("button");submit.type="submit";submit.className="hero-cta";submit.textContent="Enviar pedido de informações";
   const status=document.createElement("p");status.className="request-message";status.setAttribute("role","status");
   request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,turnstileContainer,submit,status);
   request.addEventListener("submit",async event=>{
@@ -180,14 +180,14 @@ function openPrintDetails(item, photos, materials) {
       const {data,error}=await client.functions.invoke("print-request",{body:payload});
       if(error)throw error;
       if(!data?.success)throw new Error(data?.error||"Não foi possível enviar o pedido.");
-      status.textContent="Pedido enviado com sucesso! Obrigado.";
+      status.textContent="Pedido de informações enviado com sucesso! Obrigado. Não foi confirmada qualquer encomenda.";
       request.reset();quantityField.input.value="1";
     }catch(error){
       console.error(error);
       status.textContent="Não foi possível enviar. Tenta novamente ou contacta-nos por email.";
     }finally{
       if(turnstileWidgetId!==null)window.turnstile?.reset(turnstileWidgetId);
-      submit.disabled=false;submit.textContent="Enviar pedido";
+      submit.disabled=false;submit.textContent="Enviar pedido de informações";
     }
   });
 
@@ -234,7 +234,7 @@ async function loadPublicCatalog() {
       const details=document.createElement("div");details.className="print-details";
       const title=document.createElement("h3");title.textContent=item.name;
       const desc=document.createElement("p");desc.textContent=item.description||"";
-      const price=document.createElement("p");price.className="print-card-price";price.textContent=item.price!==null&&item.price!==undefined?Number(item.price).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"Preço sob consulta";
+      const price=document.createElement("p");price.className="print-card-price";price.textContent="Projeto demonstrativo";
       const hint=document.createElement("span");hint.className="print-open-hint";hint.textContent="Ver peça e fotografias →";
       details.append(title,desc,price,hint);card.append(details);
       card.addEventListener("click",()=>openPrintDetails(item,itemPhotos,allowed.filter(x=>x.print_id===item.id)));
