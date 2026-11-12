@@ -73,17 +73,19 @@
     <div id="admin-dashboard" hidden>
       <div class="admin-toolbar"><p id="admin-user"></p><button id="logout-button" type="button" class="secondary-button">Terminar sessão</button></div>
       <div class="admin-panel">
-        <h3>Adicionar impressão</h3>
+        <h3 id="print-form-heading">Adicionar impressão</h3>
         <form id="print-form" class="admin-form admin-form-grid">
           <label>Nome da peça<input id="print-name" required placeholder="Ex.: Suporte de secretária"></label>
           <label>Preço (€)<input id="print-price" type="number" min="0" step="0.01" placeholder="Ex.: 12.50"></label>
           <label class="wide-field">Descrição<textarea id="print-description" rows="3" placeholder="Descrição breve da peça"></textarea></label>
           <label class="wide-field">Informações úteis<textarea id="print-useful-info" rows="3" placeholder="Dimensões, utilização, cuidados, personalização..."></textarea></label>
           <label class="wide-field">Observações<textarea id="print-observations" rows="3" placeholder="Prazos, limitações ou notas adicionais"></textarea></label>
-          <label class="wide-field">Fotografias (máximo 4)<input id="print-photos" type="file" accept="image/*" multiple><small>Seleciona até quatro imagens. A primeira será a fotografia principal.</small></label>
+          <label class="wide-field">Fotografias (máximo 4)<input id="print-photos" type="file" accept="image/*" multiple><small>Ao editar, as novas imagens são adicionadas às existentes até ao máximo de quatro.</small></label>
+          <div id="print-existing-photos" class="wide-field" hidden></div>
           <fieldset class="material-choice wide-field"><legend>Materiais permitidos</legend><div id="print-material-options" class="material-options">A carregar materiais…</div></fieldset>
           <label class="check-label"><input id="print-publish" type="checkbox"> Mostrar no catálogo público</label>
-          <button type="submit" class="hero-cta">Guardar impressão</button>
+          <button id="print-save-button" type="submit" class="hero-cta">Guardar impressão</button>
+          <button id="print-cancel-edit" type="button" class="secondary-button" hidden>Cancelar edição</button>
         </form>
         <p id="print-message" class="admin-message" role="status"></p>
       </div>

@@ -316,6 +316,55 @@ async function deleteFilament(item) {
 
 let adminPrints=[];
 let printMaterials=[];
+let editingPrintId=null;
+let editingPrintPhotos=[];
+let editingPrintMaterialIds=[];
+
+function resetPrintEditor(){
+  editingPrintId=null;editingPrintPhotos=[];editingPrintMaterialIds=[];
+  $("#print-form").reset();
+  $("#print-form-heading").textContent="Adicionar impressão";
+  $("#print-save-button").textContent="Guardar impressão";
+  $("#print-cancel-edit").hidden=true;
+  $("#print-existing-photos").hidden=true;
+  $("#print-existing-photos").replaceChildren();
+}
+
+async function startPrintEdit(item){
+  const message=$("#print-message");message.textContent="A carregar dados da impressão…";
+  const [{data:photos,error:photoError},{data:links,error:linkError}]=await Promise.all([
+    client.from("print_photos").select("id,photo_url,sort_order").eq("print_id",item.id).order("sort_order"),
+    client.from("print_materials").select("material_id").eq("print_id",item.id)
+  ]);
+  if(photoError||linkError){message.textContent="Não foi possível carregar os dados para edição: "+(photoError||linkError).message;return;}
+  editingPrintId=item.id;editingPrintPhotos=photos||[];editingPrintMaterialIds=(links||[]).map(link=>Number(link.material_id));
+  $("#print-form").reset();
+  $("#print-name").value=item.name||"";
+  $("#print-price").value=item.price??"";
+  $("#print-description").value=item.description||"";
+  $("#print-useful-info").value=item.useful_info||"";
+  $("#print-observations").value=item.observations||"";
+  $("#print-publish").checked=!!item.is_public;
+  $("#print-material-options").querySelectorAll('input[type="checkbox"]').forEach(input=>input.checked=editingPrintMaterialIds.includes(Number(input.value)));
+  const holder=$("#print-existing-photos");holder.replaceChildren();
+  if(editingPrintPhotos.length){
+    const title=document.createElement("strong");title.textContent="Fotografias atuais — assinala as que pretendes remover";holder.append(title);
+    const gallery=document.createElement("div");gallery.className="edit-print-photos";
+    editingPrintPhotos.forEach(photo=>{
+      const label=document.createElement("label");label.className="edit-print-photo";
+      const img=makeImage(photo.photo_url,"Fotografia da impressão");if(img)label.append(img);
+      const check=document.createElement("input");check.type="checkbox";check.value=String(photo.id);check.className="remove-print-photo";
+      const caption=document.createElement("span");caption.textContent="Remover fotografia";label.append(check,caption);gallery.append(label);
+    });holder.append(gallery);
+  }else{const info=document.createElement("p");info.textContent="Esta impressão não tem fotografias adicionais associadas.";holder.append(info);}
+  holder.hidden=false;
+  $("#print-form-heading").textContent="Editar impressão: "+item.name;
+  $("#print-save-button").textContent="Guardar alterações";
+  $("#print-cancel-edit").hidden=false;
+  message.textContent="A editar uma impressão existente. As alterações só serão guardadas quando confirmares.";
+  $("#print-form").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("#print-cancel-edit")?.addEventListener("click",()=>{resetPrintEditor();$("#print-message").textContent="Edição cancelada.";});
 async function loadAdminPrints() {
   const list=$("#admin-print-list");if(!list)return;
   list.textContent="A carregar impressões…";
@@ -338,7 +387,8 @@ async function loadAdminPrints() {
     const actions=document.createElement("div");actions.className="admin-print-actions";
     const visibility=document.createElement("button");visibility.type="button";visibility.className="secondary-button";visibility.textContent=item.is_public?"Ocultar":"Publicar";visibility.addEventListener("click",()=>setPrintVisibility(item.id,!item.is_public));
     const remove=document.createElement("button");remove.type="button";remove.className="secondary-button delete-button";remove.textContent="Eliminar";remove.addEventListener("click",()=>deletePrint(item));
-    actions.append(visibility,remove);row.append(actions);list.append(row);
+    const edit=document.createElement("button");edit.type="button";edit.className="secondary-button";edit.textContent="Editar";edit.addEventListener("click",()=>startPrintEdit(item));
+    actions.append(edit,visibility,remove);row.append(actions);list.append(row);
   });
 }
 async function setPrintVisibility(id,isPublic){
@@ -358,44 +408,84 @@ $("#print-photos")?.addEventListener("change",event=>{
   else if(files.some(file=>!file.type.startsWith("image/"))){alert("Todos os ficheiros têm de ser imagens.");event.target.value="";}
 });
 $("#print-form")?.addEventListener("submit",async event=>{
-  event.preventDefault();const message=$("#print-message");message.textContent="A guardar impressão…";
+  event.preventDefault();
+  const message=$("#print-message"),save=$("#print-save-button");
+  const wasEditing=editingPrintId!==null,printId=editingPrintId;
+  message.textContent=wasEditing?"A guardar alterações…":"A guardar impressão…";
+  save.disabled=true;
   try{
     const name=$("#print-name").value.trim();
     const priceValue=$("#print-price").value.trim();
     const price=priceValue===""?null:Number(priceValue);
     if(price!==null&&(!Number.isFinite(price)||price<0))throw new Error("Indica um preço válido.");
     const files=[...$("#print-photos").files];
-    if(files.length>4)throw new Error("Podes carregar no máximo 4 fotografias.");
-    const {data:created,error:createError}=await client.from("prints").insert({
+    if(files.length>4||files.some(file=>!file.type.startsWith("image/")))throw new Error("Seleciona no máximo 4 ficheiros de imagem.");
+    const removedIds=wasEditing?[...$("#print-existing-photos").querySelectorAll(".remove-print-photo:checked")].map(input=>input.value):[];
+    const keptPhotos=wasEditing?editingPrintPhotos.filter(photo=>!removedIds.includes(String(photo.id))):[];
+    if(keptPhotos.length+files.length>4)throw new Error("Podes ter no máximo 4 fotografias. Assinala as antigas que pretendes remover.");
+    const payload={
       name,price,description:$("#print-description").value.trim()||null,
       useful_info:$("#print-useful-info").value.trim()||null,
       observations:$("#print-observations").value.trim()||null,
       is_public:$("#print-publish").checked
-    }).select("id").single();
-    if(createError)throw createError;
+    };
+    let id=printId;
+    if(wasEditing){
+      const {error}=await client.from("prints").update(payload).eq("id",id);
+      if(error)throw error;
+    }else{
+      const {data:created,error}=await client.from("prints").insert(payload).select("id").single();
+      if(error)throw error;
+      id=created.id;
+    }
+    const materialIds=[...$("#print-material-options").querySelectorAll('input[type="checkbox"]:checked')].map(input=>Number(input.value));
+    if(wasEditing){
+      const oldIds=editingPrintMaterialIds;
+      const toRemove=oldIds.filter(oldId=>!materialIds.includes(oldId));
+      const toAdd=materialIds.filter(newId=>!oldIds.includes(newId));
+      if(toRemove.length){
+        const {error}=await client.from("print_materials").delete().eq("print_id",id).in("material_id",toRemove);
+        if(error)throw error;
+      }
+      if(toAdd.length){
+        const {error}=await client.from("print_materials").insert(toAdd.map(material_id=>({print_id:id,material_id})));
+        if(error)throw error;
+      }
+    }else if(materialIds.length){
+      const {error}=await client.from("print_materials").insert(materialIds.map(material_id=>({print_id:id,material_id})));
+      if(error)throw error;
+    }
     const uploaded=[];
     for(let i=0;i<files.length;i++){
       const file=files[i],safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
       const path="prints/"+crypto.randomUUID()+"-"+safeName;
-      const {error:uploadError}=await client.storage.from("catalogo-fotos").upload(path,file,{upsert:false});
-      if(uploadError)throw uploadError;
+      const {error}=await client.storage.from("catalogo-fotos").upload(path,file,{upsert:false});
+      if(error)throw error;
       const {data:urlData}=client.storage.from("catalogo-fotos").getPublicUrl(path);
-      uploaded.push({print_id:created.id,photo_url:urlData.publicUrl,sort_order:i});
+      uploaded.push({print_id:id,photo_url:urlData.publicUrl,sort_order:keptPhotos.length+i});
     }
     if(uploaded.length){
-      const {error:photosError}=await client.from("print_photos").insert(uploaded);
-      if(photosError)throw photosError;
-      const {error:coverError}=await client.from("prints").update({photo_url:uploaded[0].photo_url}).eq("id",created.id);
-      if(coverError)throw coverError;
+      const {error}=await client.from("print_photos").insert(uploaded);
+      if(error)throw error;
     }
-    const materialIds=[...$("#print-material-options").querySelectorAll('input[type="checkbox"]:checked')].map(input=>Number(input.value));
-    if(materialIds.length){
-      const {error:materialsError}=await client.from("print_materials").insert(materialIds.map(material_id=>({print_id:created.id,material_id})));
-      if(materialsError)throw materialsError;
+    if(removedIds.length){
+      const {error}=await client.from("print_photos").delete().eq("print_id",id).in("id",removedIds);
+      if(error)throw error;
     }
-    $("#print-form").reset();message.textContent="Impressão guardada com sucesso.";
+    const allPhotos=[...keptPhotos,...uploaded];
+    if(wasEditing||allPhotos.length){
+      const originalCover=wasEditing?adminPrints.find(item=>item.id===id)?.photo_url:null;
+      const cover=allPhotos[0]?.photo_url||(wasEditing&&editingPrintPhotos.length===0?originalCover:null)||null;
+      const {error}=await client.from("prints").update({photo_url:cover}).eq("id",id);
+      if(error)throw error;
+    }
+    resetPrintEditor();
+    message.textContent=wasEditing?"Alterações guardadas com sucesso.":"Impressão guardada com sucesso.";
     await loadAdminPrints();await loadPublicCatalog();
-  }catch(error){console.error(error);message.textContent="Erro ao guardar: "+(error.message||"confirma os dados e as permissões.");}
+  }catch(error){
+    console.error(error);
+    message.textContent="Erro ao guardar: "+(error.message||"confirma os dados e as permissões.")+" Se a operação foi interrompida, verifica os dados antes de tentares novamente.";
+  }finally{save.disabled=false;}
 });
 
 $("#login-form")?.addEventListener("submit",async event=>{
