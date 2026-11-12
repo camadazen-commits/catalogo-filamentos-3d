@@ -164,11 +164,12 @@ function openPrintDetails(item, photos, materials) {
   colorLabel.append(colorSelect);
   const messageLabel=document.createElement("label");messageLabel.textContent="Mensagem ou detalhes (opcional)";
   const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.maxLength=3000;messageLabel.append(messageInput);
+  const privacyNote=document.createElement("p");privacyNote.className="request-privacy-note";privacyNote.append("Os dados deste formulário são tratados por João Cardoso para responder ao teu pedido. Consulta a ");const privacyLink=document.createElement("a");privacyLink.href="privacidade.html";privacyLink.target="_blank";privacyLink.rel="noopener noreferrer";privacyLink.textContent="Política de Privacidade";privacyNote.append(privacyLink,".");
   const turnstileContainer=document.createElement("div");turnstileContainer.className="turnstile-container";
   let turnstileWidgetId=null;
   const submit=document.createElement("button");submit.type="submit";submit.className="hero-cta";submit.textContent="Enviar pedido de informações";
   const status=document.createElement("p");status.className="request-message";status.setAttribute("role","status");
-  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,turnstileContainer,submit,status);
+  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,privacyNote,turnstileContainer,submit,status);
   request.addEventListener("submit",async event=>{
     event.preventDefault();
     const turnstileToken=turnstileWidgetId!==null?window.turnstile?.getResponse(turnstileWidgetId):"";
