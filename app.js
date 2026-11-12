@@ -122,6 +122,7 @@ function openPrintDetails(item, photos, materials) {
   const field=(labelText,type,name,required=true)=>{
     const label=document.createElement("label");label.textContent=labelText;
     const input=document.createElement("input");input.type=type;input.name=name;input.required=required;
+    if(type==="text"){input.spellcheck=true;input.lang="pt-PT";}
     if(name==="quantity"){input.min="1";input.max="10000";input.step="1";input.value="1";}
     if(name==="email")input.autocomplete="email";
     if(name==="name")input.autocomplete="name";
@@ -139,31 +140,53 @@ function openPrintDetails(item, photos, materials) {
   if(!allowed.length){const option=document.createElement("option");option.value="A combinar";option.textContent="A combinar";materialSelect.append(option);}
   materialLabel.append(materialSelect);
   const colorLabel=document.createElement("label");colorLabel.textContent="Cor pretendida";
-  const colorSelect=document.createElement("select");colorSelect.name="color";colorSelect.required=true;
-  const colorPlaceholder=document.createElement("option");colorPlaceholder.value="";colorPlaceholder.textContent="Escolhe primeiro o material";colorSelect.append(colorPlaceholder);
+  const colorSelect=document.createElement("select");colorSelect.name="color";colorSelect.className="visually-hidden-color-select";colorSelect.tabIndex=-1;
+  const colorMenu=document.createElement("details");colorMenu.className="color-picker-menu";
+  colorSelect.setAttribute("aria-hidden","true");
+  const colorSummary=document.createElement("summary");colorSummary.textContent="Escolhe primeiro o material";
+  colorSummary.setAttribute("aria-label","Escolher cor pretendida");
+  const colorOptions=document.createElement("div");colorOptions.className="color-picker-options";
+  colorMenu.append(colorSummary,colorOptions);
+  const chooseColor=(value,label,reference)=>{
+    colorSelect.value=value;
+    colorSummary.replaceChildren();
+    const hex=getHexColor(reference);
+    if(hex){const swatch=document.createElement("span");swatch.className="color-picker-swatch";swatch.style.backgroundColor=hex;colorSummary.append(swatch);}
+    const caption=document.createElement("span");caption.textContent=label;colorSummary.append(caption);
+    colorMenu.open=false;
+  };
+  const addColorChoice=(value,label,reference)=>{
+    const option=document.createElement("option");option.value=value;option.textContent=label;colorSelect.append(option);
+    const button=document.createElement("button");button.type="button";button.className="color-picker-option";
+    const hex=getHexColor(reference);
+    const swatch=document.createElement("span");swatch.className="color-picker-swatch";
+    if(hex)swatch.style.backgroundColor=hex;
+    else swatch.classList.add("color-picker-swatch-unknown");
+    button.append(swatch,document.createTextNode(label));
+    button.addEventListener("click",()=>chooseColor(value,label,reference));
+    colorOptions.append(button);
+  };
   const updateColorChoices=()=>{
     const selectedMaterial=materialSelect.value;
     const choices=allFilaments.filter(f=>f.available && allowed.includes(f.material) && (!selectedMaterial || selectedMaterial==="A combinar" || f.material===selectedMaterial));
-    colorSelect.replaceChildren();
+    colorSelect.replaceChildren();colorOptions.replaceChildren();colorMenu.open=false;
     const first=document.createElement("option");first.value="";first.textContent=selectedMaterial?"Escolhe uma cor":"Escolhe primeiro o material";colorSelect.append(first);
+    colorSummary.textContent=first.textContent;
     const unique=new Map();
     choices.forEach(f=>{
       const label=[f.color_name,f.color_reference,f.brand].filter(Boolean).join(" · ");
       const key=[f.material,f.color_name,f.color_reference,f.brand].join("|");
-      if(!unique.has(key))unique.set(key,{label,material:f.material});
+      if(!unique.has(key))unique.set(key,{label,reference:f.color_reference});
     });
-    [...unique.values()].forEach(choice=>{
-      const option=document.createElement("option");option.value=choice.label;option.textContent=choice.label;colorSelect.append(option);
-    });
-    if(!choices.length && selectedMaterial){
-      const none=document.createElement("option");none.value="A combinar";none.textContent="A combinar / sem cor em stock";colorSelect.append(none);
-    }
+    [...unique.values()].forEach(choice=>addColorChoice(choice.label,choice.label,choice.reference));
+    if(!choices.length&&selectedMaterial)addColorChoice("A combinar","A combinar / sem cor em stock",null);
+    colorSummary.setAttribute("aria-disabled",!selectedMaterial?"true":"false");
   };
   materialSelect.addEventListener("change",updateColorChoices);
   updateColorChoices();
-  colorLabel.append(colorSelect);
+  colorLabel.append(colorMenu,colorSelect);
   const messageLabel=document.createElement("label");messageLabel.textContent="Mensagem ou detalhes (opcional)";
-  const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.maxLength=3000;messageLabel.append(messageInput);
+  const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.spellcheck=true;messageInput.lang="pt-PT";messageInput.maxLength=3000;messageLabel.append(messageInput);
   const privacyNote=document.createElement("p");privacyNote.className="request-privacy-note";privacyNote.append("Os dados deste formulário são tratados por João Cardoso para responder ao teu pedido. Consulta a ");const privacyLink=document.createElement("a");privacyLink.href="privacidade.html";privacyLink.target="_blank";privacyLink.rel="noopener noreferrer";privacyLink.textContent="Política de Privacidade";privacyNote.append(privacyLink,".");
   const turnstileContainer=document.createElement("div");turnstileContainer.className="turnstile-container";
   let turnstileWidgetId=null;
@@ -172,6 +195,7 @@ function openPrintDetails(item, photos, materials) {
   request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,privacyNote,turnstileContainer,submit,status);
   request.addEventListener("submit",async event=>{
     event.preventDefault();
+    if(!colorSelect.value){status.textContent="Seleciona uma cor antes de enviar.";colorSummary.focus();return;}
     const turnstileToken=turnstileWidgetId!==null?window.turnstile?.getResponse(turnstileWidgetId):"";
     if(!turnstileToken){status.textContent="Confirma a verificação de segurança antes de enviar.";return;}
     submit.disabled=true;submit.textContent="A enviar…";status.textContent="";
@@ -181,7 +205,7 @@ function openPrintDetails(item, photos, materials) {
       if(error)throw error;
       if(!data?.success)throw new Error(data?.error||"Não foi possível enviar o pedido.");
       status.textContent="Pedido de informações enviado com sucesso! Obrigado. Não foi confirmada qualquer encomenda.";
-      request.reset();quantityField.input.value="1";
+      request.reset();quantityField.input.value="1";updateColorChoices();
     }catch(error){
       console.error(error);
       status.textContent="Não foi possível enviar. Tenta novamente ou contacta-nos por email.";
