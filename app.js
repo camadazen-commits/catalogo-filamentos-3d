@@ -109,9 +109,8 @@ function openPrintDetails(item, photos, materials) {
   urls.forEach((url,index)=>{const thumb=document.createElement("button");thumb.type="button";thumb.className="print-thumb";const image=document.createElement("img");image.src=url;image.alt=item.name+" — fotografia "+(index+1);thumb.append(image);thumb.addEventListener("click",()=>{mainPhoto.src=url;});thumbs.append(thumb);});
   gallery.append(thumbs);
   const content=document.createElement("div");content.className="print-modal-content";
-  const price=document.createElement("p");price.className="print-price";price.textContent="Exemplo de projeto pessoal · Sem encomenda confirmada";
   const desc=document.createElement("p");desc.textContent=item.description||"";
-  content.append(price,desc);
+  content.append(desc);
   if(item.useful_info){const h=document.createElement("h3");h.textContent="Informações úteis";const p=document.createElement("p");p.textContent=item.useful_info;content.append(h,p);}
   if(item.observations){const h=document.createElement("h3");h.textContent="Observações";const p=document.createElement("p");p.textContent=item.observations;content.append(h,p);}
   const allowed=(materials||[]).map(x=>x.material_name).filter(Boolean);
