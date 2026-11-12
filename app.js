@@ -165,14 +165,18 @@ function openPrintDetails(item, photos, materials) {
   colorLabel.append(colorSelect);
   const messageLabel=document.createElement("label");messageLabel.textContent="Mensagem ou detalhes (opcional)";
   const messageInput=document.createElement("textarea");messageInput.name="message";messageInput.rows=3;messageInput.maxLength=3000;messageLabel.append(messageInput);
+  const turnstileContainer=document.createElement("div");turnstileContainer.className="turnstile-container";
+  let turnstileWidgetId=null;
   const submit=document.createElement("button");submit.type="submit";submit.className="hero-cta";submit.textContent="Enviar pedido";
   const status=document.createElement("p");status.className="request-message";status.setAttribute("role","status");
-  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,submit,status);
+  request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,turnstileContainer,submit,status);
   request.addEventListener("submit",async event=>{
     event.preventDefault();
+    const turnstileToken=turnstileWidgetId!==null?window.turnstile?.getResponse(turnstileWidgetId):"";
+    if(!turnstileToken){status.textContent="Confirma a verificação de segurança antes de enviar.";return;}
     submit.disabled=true;submit.textContent="A enviar…";status.textContent="";
     try{
-      const payload={name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,material:materialSelect.value,quantity:Number(quantityField.input.value),message:("Cor pretendida: "+colorSelect.value+(messageInput.value.trim()?"\\n\\n"+messageInput.value.trim():""))};
+      const payload={turnstileToken,name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,material:materialSelect.value,quantity:Number(quantityField.input.value),message:("Cor pretendida: "+colorSelect.value+(messageInput.value.trim()?"\\n\\n"+messageInput.value.trim():""))};
       const {data,error}=await client.functions.invoke("print-request",{body:payload});
       if(error)throw error;
       if(!data?.success)throw new Error(data?.error||"Não foi possível enviar o pedido.");
@@ -182,6 +186,7 @@ function openPrintDetails(item, photos, materials) {
       console.error(error);
       status.textContent="Não foi possível enviar. Tenta novamente ou contacta-nos por email.";
     }finally{
+      if(turnstileWidgetId!==null)window.turnstile?.reset(turnstileWidgetId);
       submit.disabled=false;submit.textContent="Enviar pedido";
     }
   });
@@ -190,6 +195,15 @@ function openPrintDetails(item, photos, materials) {
   overlay.addEventListener("click",event=>{if(event.target===overlay)overlay.remove();});
   document.addEventListener("keydown",function esc(event){if(event.key==="Escape"){overlay.remove();document.removeEventListener("keydown",esc);}});
   document.body.append(overlay);
+  if(window.turnstile){
+    turnstileWidgetId=window.turnstile.render(turnstileContainer,{
+      sitekey:"0x4AAAAAAF9efbZHP_zUi88v",
+      theme:"dark",
+    });
+  }else{
+    status.textContent="A verificação de segurança não carregou. Atualiza a página e tenta novamente.";
+    submit.disabled=true;
+  }
 }
 async function loadPublicCatalog() {
   try {
