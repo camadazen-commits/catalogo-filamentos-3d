@@ -17,6 +17,8 @@
 .guide h2{font:800 clamp(23px,3vw,30px)/1.25 Manrope,sans-serif;margin:0 0 18px}
 .guide h3{font:700 20px Manrope,sans-serif;margin:0 0 12px}
 .guide p,.guide li{line-height:1.75;color:var(--muted)}
+/* Justificação apenas dos parágrafos explicativos em ecrãs maiores. */
+@media(min-width:651px){.guide p:not(.eyebrow){text-align:justify;hyphens:auto;-webkit-hyphens:auto}}
 .guide ul{padding-left:20px}
 .guide li{margin-bottom:8px}
 .guide .eyebrow{color:var(--accent);font-size:11px;letter-spacing:2px;font-weight:800}
