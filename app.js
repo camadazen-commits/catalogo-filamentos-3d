@@ -474,7 +474,8 @@ $("#print-form")?.addEventListener("submit",async event=>{
     }
     const allPhotos=[...keptPhotos,...uploaded];
     if(wasEditing||allPhotos.length){
-      const cover=allPhotos[0]?.photo_url||null;
+      const originalCover=wasEditing?adminPrints.find(item=>item.id===id)?.photo_url:null;
+      const cover=allPhotos[0]?.photo_url||(wasEditing&&editingPrintPhotos.length===0?originalCover:null)||null;
       const {error}=await client.from("prints").update({photo_url:cover}).eq("id",id);
       if(error)throw error;
     }
