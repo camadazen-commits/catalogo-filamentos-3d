@@ -133,7 +133,7 @@
 /* Lema sob o símbolo principal, sem alterar os logótipos pequenos */
 .hero-art{align-content:center;gap:12px}
 .hero-art .camadazen-symbol{max-height:270px}
-.hero-logo-motto{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:clamp(6px,1vw,14px);margin:0;text-align:center;font:500 clamp(10px,1vw,13px)/1.5 "DM Sans",sans-serif;letter-spacing:clamp(1px,.18vw,2.4px);white-space:normal}
+.hero-logo-motto{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:clamp(12px,1.8vw,24px);margin:0;text-align:center;font:500 clamp(10px,1vw,13px)/1.5 "DM Sans",sans-serif;letter-spacing:clamp(2px,.28vw,3.6px);white-space:normal}
 .hero-logo-motto span:nth-of-type(odd){color:#f28a22}
 .hero-logo-motto span:nth-of-type(even),.hero-logo-motto b{color:#a5ad70}
-@media(max-width:760px){.hero-art{height:auto;min-height:270px;gap:10px}.hero-art .camadazen-symbol{max-height:215px}.hero-logo-motto{font-size:10px;letter-spacing:1px;gap:7px}}
+@media(max-width:760px){.hero-art{height:auto;min-height:270px;gap:10px}.hero-art .camadazen-symbol{max-height:215px}.hero-logo-motto{font-size:10px;letter-spacing:1.7px;gap:10px}}
