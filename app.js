@@ -142,6 +142,7 @@ function openPrintDetails(item, photos, materials) {
   const colorLabel=document.createElement("label");colorLabel.textContent="Cor pretendida";
   const colorSelect=document.createElement("select");colorSelect.name="color";colorSelect.className="visually-hidden-color-select";colorSelect.tabIndex=-1;
   const colorMenu=document.createElement("details");colorMenu.className="color-picker-menu";
+  colorSelect.setAttribute("aria-hidden","true");
   const colorSummary=document.createElement("summary");colorSummary.textContent="Escolhe primeiro o material";
   colorSummary.setAttribute("aria-label","Escolher cor pretendida");
   const colorOptions=document.createElement("div");colorOptions.className="color-picker-options";
@@ -194,6 +195,7 @@ function openPrintDetails(item, photos, materials) {
   request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,privacyNote,turnstileContainer,submit,status);
   request.addEventListener("submit",async event=>{
     event.preventDefault();
+    if(!colorSelect.value){status.textContent="Seleciona uma cor antes de enviar.";colorSummary.focus();return;}
     const turnstileToken=turnstileWidgetId!==null?window.turnstile?.getResponse(turnstileWidgetId):"";
     if(!turnstileToken){status.textContent="Confirma a verificação de segurança antes de enviar.";return;}
     submit.disabled=true;submit.textContent="A enviar…";status.textContent="";
