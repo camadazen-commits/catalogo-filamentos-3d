@@ -200,7 +200,7 @@ function openPrintDetails(item, photos, materials) {
     if(!turnstileToken){status.textContent="Confirma a verificação de segurança antes de enviar.";return;}
     submit.disabled=true;submit.textContent="A enviar…";status.textContent="";
     try{
-      const payload={turnstileToken,name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,material:materialSelect.value,quantity:Number(quantityField.input.value),message:("Cor pretendida: "+colorSelect.value+(messageInput.value.trim()?"\\n\\n"+messageInput.value.trim():""))};
+      const payload={turnstileToken,name:nameField.input.value.trim(),email:emailField.input.value.trim(),phone:phoneField.input.value.trim(),printName:item.name,printId:item.id,material:materialSelect.value,quantity:Number(quantityField.input.value),message:("Cor pretendida: "+colorSelect.value+(messageInput.value.trim()?"\\n\\n"+messageInput.value.trim():""))};
       const {data,error}=await client.functions.invoke("print-request",{body:payload});
       if(error)throw error;
       if(!data?.success)throw new Error(data?.error||"Não foi possível enviar o pedido.");
