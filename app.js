@@ -253,7 +253,7 @@ async function loadPublicCatalog() {
     prints.forEach(item=>{
       const itemPhotos=photos.filter(x=>x.print_id===item.id).sort((a,b)=>a.sort_order-b.sort_order);
       const card=document.createElement("button");card.type="button";card.className="print-card print-card-button";card.setAttribute("aria-label","Ver detalhes de "+item.name);
-      const cover=itemPhotos[0]?.photo_url||item.photo_url;
+      const cover=item.photo_url||itemPhotos[0]?.photo_url;
       const img=makeImage(cover,item.name);if(img)card.append(img);
       const details=document.createElement("div");details.className="print-details";
       const title=document.createElement("h3");title.textContent=item.name;
