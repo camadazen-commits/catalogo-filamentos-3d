@@ -343,9 +343,49 @@ let printMaterials=[];
 let editingPrintId=null;
 let editingPrintPhotos=[];
 let editingPrintMaterialIds=[];
+let selectedCoverKey=null;
+let previewObjectUrls=[];
+function clearPreviewUrls(){previewObjectUrls.forEach(url=>URL.revokeObjectURL(url));previewObjectUrls=[];}
+function getPhotoChoices(){
+  const removed=new Set([...$("#print-existing-photos").querySelectorAll(".remove-print-photo:checked")].map(el=>el.value));
+  return [...editingPrintPhotos.filter(p=>!removed.has(String(p.id))).map(p=>({key:"old-"+p.id,url:p.photo_url})),
+    ...[...$("#print-photos").files].map((file,i)=>({key:"new-"+i,file}))];
+}
+function refreshPhotoChoices(){
+  clearPreviewUrls();const choices=getPhotoChoices(),holder=$("#print-photo-choices");holder.replaceChildren();
+  if(!choices.some(c=>c.key===selectedCoverKey))selectedCoverKey=choices[0]?.key||null;
+  if(!choices.length){holder.textContent="Adiciona fotografias para escolheres a imagem principal.";return;}
+  const title=document.createElement("strong");title.textContent="Escolhe a fotografia principal";holder.append(title);
+  const gallery=document.createElement("div");gallery.className="print-photo-picker";
+  choices.forEach((choice,i)=>{
+    const label=document.createElement("label");label.className="print-photo-option";
+    const img=document.createElement("img");img.alt="Fotografia "+(i+1);img.src=choice.file?URL.createObjectURL(choice.file):choice.url;
+    if(choice.file)previewObjectUrls.push(img.src);
+    const radio=document.createElement("input");radio.type="radio";radio.name="print-cover-choice";radio.checked=choice.key===selectedCoverKey;
+    radio.addEventListener("change",()=>{selectedCoverKey=choice.key;$("#print-preview").hidden=true;});
+    const text=document.createElement("span");text.textContent="Fotografia principal";label.append(img,radio,text);gallery.append(label);
+  });holder.append(gallery);
+}
+function showPrintPreview(){
+  const choices=getPhotoChoices(),area=$("#print-preview");area.replaceChildren();
+  const title=document.createElement("h3");title.textContent="Pré-visualização privada — não publicada";area.append(title);
+  const card=document.createElement("div");card.className="print-preview-card";
+  const chosen=choices.find(c=>c.key===selectedCoverKey)||choices[0];
+  if(chosen){const img=document.createElement("img");img.alt="Fotografia principal";img.src=chosen.file?URL.createObjectURL(chosen.file):chosen.url;if(chosen.file)previewObjectUrls.push(img.src);card.append(img);}
+  const name=document.createElement("h3");name.textContent=$("#print-name").value.trim()||"Impressão sem nome";card.append(name);
+  const price=document.createElement("p");const raw=$("#print-price").value;price.textContent=raw!==""&&Number.isFinite(Number(raw))?Number(raw).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})+" (referência)":"Preço sob consulta";card.append(price);
+  [["Descrição","print-description"],["Informações úteis","print-useful-info"],["Observações","print-observations"]].forEach(([label,id])=>{const value=$("#"+id).value.trim();if(value){const p=document.createElement("p");const strong=document.createElement("strong");strong.textContent=label+": ";p.append(strong,document.createTextNode(value));card.append(p);}});
+  const materials=[...$("#print-material-options").querySelectorAll('input[type="checkbox"]:checked')].map(input=>input.parentElement.textContent.trim());if(materials.length){const p=document.createElement("p");p.textContent="Materiais: "+materials.join(", ");card.append(p);}
+  const state=document.createElement("p");state.textContent=$("#print-publish").checked?"Marcada para publicação ao guardar.":"Será guardada como oculta.";card.append(state);
+  area.append(card);area.hidden=false;area.scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("#print-preview-button")?.addEventListener("click",showPrintPreview);
+$("#print-existing-photos")?.addEventListener("change",event=>{if(event.target.classList.contains("remove-print-photo")){refreshPhotoChoices();$("#print-preview").hidden=true;}});
+
 
 function resetPrintEditor(){
-  editingPrintId=null;editingPrintPhotos=[];editingPrintMaterialIds=[];
+  editingPrintId=null;editingPrintPhotos=[];editingPrintMaterialIds=[];selectedCoverKey=null;
+  clearPreviewUrls();$("#print-preview").hidden=true;
   $("#print-form").reset();
   $("#print-form-heading").textContent="Adicionar impressão";
   $("#print-save-button").textContent="Guardar impressão";
@@ -361,7 +401,7 @@ async function startPrintEdit(item){
     client.from("print_materials").select("material_id").eq("print_id",item.id)
   ]);
   if(photoError||linkError){message.textContent="Não foi possível carregar os dados para edição: "+(photoError||linkError).message;return;}
-  editingPrintId=item.id;editingPrintPhotos=photos||[];editingPrintMaterialIds=(links||[]).map(link=>Number(link.material_id));
+  editingPrintId=item.id;editingPrintPhotos=photos||[];selectedCoverKey=editingPrintPhotos.find(p=>p.photo_url===item.photo_url)?("old-"+editingPrintPhotos.find(p=>p.photo_url===item.photo_url).id):null;$("#print-preview").hidden=true;editingPrintMaterialIds=(links||[]).map(link=>Number(link.material_id));
   $("#print-form").reset();
   $("#print-name").value=item.name||"";
   $("#print-price").value=item.price??"";
@@ -382,6 +422,7 @@ async function startPrintEdit(item){
     });holder.append(gallery);
   }else{const info=document.createElement("p");info.textContent="Esta impressão não tem fotografias adicionais associadas.";holder.append(info);}
   holder.hidden=false;
+  refreshPhotoChoices();
   $("#print-form-heading").textContent="Editar impressão: "+item.name;
   $("#print-save-button").textContent="Guardar alterações";
   $("#print-cancel-edit").hidden=false;
@@ -430,6 +471,7 @@ $("#print-photos")?.addEventListener("change",event=>{
   const files=[...event.target.files];
   if(files.length>4){alert("Podes selecionar no máximo 4 fotografias.");event.target.value="";}
   else if(files.some(file=>!file.type.startsWith("image/"))){alert("Todos os ficheiros têm de ser imagens.");event.target.value="";}
+  refreshPhotoChoices();$("#print-preview").hidden=true;
 });
 $("#print-form")?.addEventListener("submit",async event=>{
   event.preventDefault();
@@ -497,9 +539,10 @@ $("#print-form")?.addEventListener("submit",async event=>{
       if(error)throw error;
     }
     const allPhotos=[...keptPhotos,...uploaded];
+    const chosenPhoto=selectedCoverKey?.startsWith("old-")?keptPhotos.find(p=>"old-"+p.id===selectedCoverKey):selectedCoverKey?.startsWith("new-")?uploaded[Number(selectedCoverKey.slice(4))]:null;
     if(wasEditing||allPhotos.length){
       const originalCover=wasEditing?adminPrints.find(item=>item.id===id)?.photo_url:null;
-      const cover=allPhotos[0]?.photo_url||(wasEditing&&editingPrintPhotos.length===0?originalCover:null)||null;
+      const cover=chosenPhoto?.photo_url||allPhotos[0]?.photo_url||(wasEditing&&editingPrintPhotos.length===0?originalCover:null)||null;
       const {error}=await client.from("prints").update({photo_url:cover}).eq("id",id);
       if(error)throw error;
     }
