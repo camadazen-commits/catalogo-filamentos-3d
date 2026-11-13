@@ -83,11 +83,14 @@
           <label class="wide-field">Observações<textarea spellcheck="true" lang="pt-PT" id="print-observations" rows="3" placeholder="Prazos, limitações ou notas adicionais"></textarea></label>
           <label class="wide-field">Fotografias (máximo 4)<input id="print-photos" type="file" accept="image/*" multiple><small>Ao editar, as novas imagens são adicionadas às existentes até ao máximo de quatro.</small></label>
           <div id="print-existing-photos" class="wide-field" hidden></div>
+          <div id="print-photo-choices" class="wide-field" aria-live="polite"></div>
           <fieldset class="material-choice wide-field"><legend>Materiais permitidos</legend><div id="print-material-options" class="material-options">A carregar materiais…</div></fieldset>
           <label class="check-label"><input id="print-publish" type="checkbox"> Mostrar no catálogo público</label>
+          <button id="print-preview-button" type="button" class="secondary-button">Pré-visualizar</button>
           <button id="print-save-button" type="submit" class="hero-cta">Guardar impressão</button>
           <button id="print-cancel-edit" type="button" class="secondary-button" hidden>Cancelar edição</button>
         </form>
+        <div id="print-preview" class="print-preview" hidden></div>
         <p id="print-message" class="admin-message" role="status"></p>
       </div>
       <div class="admin-panel"><h3>Gerir impressões</h3><div id="admin-print-list"></div></div>
