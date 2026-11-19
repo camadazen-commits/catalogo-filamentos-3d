@@ -126,12 +126,16 @@ function openPrintDetails(item, photos, materials) {
     if(name==="quantity"){input.min="1";input.max="10000";input.step="1";input.value="1";}
     if(name==="email")input.autocomplete="email";
     if(name==="name")input.autocomplete="name";
-    if(name==="phone")input.autocomplete="tel";
+    if(name==="phone"){input.autocomplete="tel";input.inputMode="tel";input.placeholder="Ex.: +351 912 345 678";input.maxLength=25;input.setAttribute("aria-describedby","phone-hint");
+      input.addEventListener("beforeinput",event=>{if(event.data&&/[^0-9+ ()-]/.test(event.data))event.preventDefault();});
+      input.addEventListener("input",()=>{const original=input.value;let clean=original.replace(/[^0-9+ ()-]/g,"");clean=clean.replace(/\+/g,(match,index)=>index===0?"+":"");if(clean!==original)input.value=clean;input.setCustomValidity("");});
+    }
     label.append(input);return {label,input};
   };
   const nameField=field("Nome","text","name");
   const emailField=field("Email","email","email");
   const phoneField=field("Telefone (opcional)","tel","phone",false);
+  const phoneHint=document.createElement("small");phoneHint.id="phone-hint";phoneHint.textContent="Aceita números portugueses e internacionais. Para outros países, indica o indicativo com + (ex.: +34).";phoneField.label.append(phoneHint);
   const quantityField=field("Quantidade","number","quantity");
   const materialLabel=document.createElement("label");materialLabel.textContent="Material pretendido";
   const materialSelect=document.createElement("select");materialSelect.name="material";materialSelect.required=true;
@@ -195,6 +199,8 @@ function openPrintDetails(item, photos, materials) {
   request.append(requestTitle,intro,nameField.label,emailField.label,phoneField.label,materialLabel,colorLabel,quantityField.label,messageLabel,privacyNote,turnstileContainer,submit,status);
   request.addEventListener("submit",async event=>{
     event.preventDefault();
+    const phone=phoneField.input.value.trim();
+    if(phone){const digits=phone.replace(/\D/g,"");const format=/^\+?[0-9][0-9 ()-]*$/.test(phone);if(!format||digits.length<7||digits.length>15){status.textContent="Indica um telefone válido (7 a 15 algarismos), com indicativo + para números internacionais.";phoneField.input.focus();return;}}
     if(!colorSelect.value){status.textContent="Seleciona uma cor antes de enviar.";colorSummary.focus();return;}
     const turnstileToken=turnstileWidgetId!==null?window.turnstile?.getResponse(turnstileWidgetId):"";
     if(!turnstileToken){status.textContent="Confirma a verificação de segurança antes de enviar.";return;}
