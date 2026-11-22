@@ -467,10 +467,22 @@ async function deletePrint(item){
   if(error){alert("Não foi possível eliminar a impressão: "+error.message);return;}
   await loadAdminPrints();await loadPublicCatalog();
 }
+// Alguns navegadores não identificam o MIME de fotografias válidas.
+// Aceitar a extensão conhecida apenas quando o tipo MIME não está disponível.
+function isSupportedImageFile(file){
+  if(file.type)return ["image/jpeg","image/png","image/webp"].includes(file.type.toLowerCase());
+  return /\.(jpe?g|png|webp)$/i.test(file.name);
+}
+function imageUploadFile(file){
+  if(file.type)return file;
+  const ext=file.name.split(".").pop().toLowerCase();
+  const mime=ext==="png"?"image/png":ext==="webp"?"image/webp":"image/jpeg";
+  return new File([file],file.name,{type:mime,lastModified:file.lastModified});
+}
 $("#print-photos")?.addEventListener("change",event=>{
   const files=[...event.target.files];
   if(files.length>4){alert("Podes selecionar no máximo 4 fotografias.");event.target.value="";}
-  else if(files.some(file=>!file.type.startsWith("image/"))){alert("Todos os ficheiros têm de ser imagens.");event.target.value="";}
+  else if(files.some(file=>!isSupportedImageFile(file))){alert("Todos os ficheiros têm de ser imagens.");event.target.value="";}
   refreshPhotoChoices();$("#print-preview").hidden=true;
 });
 $("#print-form")?.addEventListener("submit",async event=>{
@@ -485,7 +497,7 @@ $("#print-form")?.addEventListener("submit",async event=>{
     const price=priceValue===""?null:Number(priceValue);
     if(price!==null&&(!Number.isFinite(price)||price<0))throw new Error("Indica um preço válido.");
     const files=[...$("#print-photos").files];
-    if(files.length>4||files.some(file=>!file.type.startsWith("image/")))throw new Error("Seleciona no máximo 4 ficheiros de imagem.");
+    if(files.length>4||files.some(file=>!isSupportedImageFile(file)))throw new Error("Seleciona no máximo 4 ficheiros de imagem.");
     const removedIds=wasEditing?[...$("#print-existing-photos").querySelectorAll(".remove-print-photo:checked")].map(input=>input.value):[];
     const keptPhotos=wasEditing?editingPrintPhotos.filter(photo=>!removedIds.includes(String(photo.id))):[];
     if(keptPhotos.length+files.length>4)throw new Error("Podes ter no máximo 4 fotografias. Assinala as antigas que pretendes remover.");
@@ -525,7 +537,7 @@ $("#print-form")?.addEventListener("submit",async event=>{
     for(let i=0;i<files.length;i++){
       const file=files[i],safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
       const path="prints/"+crypto.randomUUID()+"-"+safeName;
-      const {error}=await client.storage.from("catalogo-fotos").upload(path,file,{upsert:false});
+      const {error}=await client.storage.from("catalogo-fotos").upload(path,imageUploadFile(file),{upsert:false});
       if(error)throw error;
       const {data:urlData}=client.storage.from("catalogo-fotos").getPublicUrl(path);
       uploaded.push({print_id:id,photo_url:urlData.publicUrl,sort_order:keptPhotos.length+i});
@@ -575,7 +587,7 @@ $("#filament-form")?.addEventListener("submit",async event=>{
     if(be)throw be;if(me)throw me;
     let photoUrl=null;const file=$("#filament-photo").files[0];
     if(file){
-      if(!file.type.startsWith("image/"))throw new Error("O ficheiro tem de ser uma imagem.");
+      if(!isSupportedImageFile(file))throw new Error("O ficheiro tem de ser uma imagem.");
       const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
       const path=`filaments/${crypto.randomUUID()}-${safeName}`;
       const {error:uploadError}=await client.storage.from("catalogo-fotos").upload(path,file,{upsert:false});
