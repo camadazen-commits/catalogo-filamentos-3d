@@ -257,7 +257,7 @@ async function loadPublicCatalog() {
       const img=makeImage(cover,item.name);if(img)card.append(img);
       const details=document.createElement("div");details.className="print-details";
       const title=document.createElement("h3");title.textContent=item.name;
-      const desc=document.createElement("p");desc.textContent=item.description||"";
+      const desc=document.createElement("p");desc.className="print-card-summary";desc.textContent=(item.description||"").replace(/\s+/g," ").trim();
       const price=document.createElement("p");price.className="print-card-price";price.textContent="Projeto demonstrativo";
       const hint=document.createElement("span");hint.className="print-open-hint";hint.textContent="Ver peça e fotografias →";
       details.append(title,desc,price,hint);card.append(details);
